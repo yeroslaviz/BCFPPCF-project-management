@@ -1,0 +1,34 @@
+project:
+  type: book
+  output-dir: _site
+
+book:
+  title: "PPSV Project Management System"
+  subtitle: "Operator and developer guide"
+  author: "Protein Production and Structural Validation Facility"
+  chapters:
+    - index.qmd
+    - chapters/quick-start.qmd
+    - chapters/architecture-configuration.qmd
+    - chapters/field-dictionary.qmd
+    - chapters/identity-authorization.qmd
+    - chapters/mail-storage.qmd
+    - chapters/deployment.qmd
+    - chapters/backup-restore.qmd
+    - chapters/acceptance.qmd
+    - chapters/troubleshooting.qmd
+    - chapters/development-verification.qmd
+    - chapters/changelog.qmd
+
+format:
+  html:
+    link-external-newwindow: true
+    link-external-icon: true
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    code-fold: false
+    grid:
+      body-width: 1200px
+      margin-width: 280px
+      gutter-width: 2rem

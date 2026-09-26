@@ -1,0 +1,113 @@
+---
+title: "Identity and Authorization"
+execute:
+  eval: false
+---
+
+## Production identity flow
+
+Apache performs LDAP authentication before proxying `/ppsv-app/`. At virtual
+host scope it removes all client-controlled identity headers, including
+`X-Remote-User`, name, email, group, and phone variants. Inside the protected
+location it injects values obtained from the successful LDAP request:
+
+- `X-Remote-User` from `REMOTE_USER`;
+- `X-Remote-Name` from the LDAP display name;
+- `X-Remote-Email` from the LDAP mail attribute;
+- `X-Remote-Group` from the configured organizational attribute; and
+- `X-Remote-Phone` from the LDAP telephone attribute.
+
+The application accepts that trusted proxy identity only when `AUTH_MODE=ldap`.
+There is no production identity through query parameters, cookies, form fields,
+local passwords, or default credentials. If Apache does not provide a valid
+authenticated username, the application fails closed.
+
+Usernames are normalized case-insensitively. LDAP profile values and their
+verification flags are synchronized at login, and the application records the
+last login. A missing LDAP name or email may be supplied in a request, but is
+marked unverified and is not promoted to a trusted mail identity.
+
+## Fixed role allowlist
+
+Roles are derived from this version-controlled allowlist on every security
+decision. A role value supplied by a UI event, database row, or header is not
+trusted.
+
+| Role | Usernames |
+|---|---|
+| `admin` | `yeroslaviz`, `basquin` |
+| `technician` | `grzejszc`, `pleyer`, `valer`, `wehner`, `yaoxiao`, `piroddi` |
+| `user` | Every other active LDAP user |
+
+The `b_profa` group is used only for the project-pool ACL. Membership never
+grants technician or administrator privileges in the application. There is no
+role editor.
+
+## Permission matrix
+
+Every permission below is enforced in server handlers and backend lifecycle or
+repository functions. Hiding a button is only a usability feature.
+
+| Action | User | Technician | Admin |
+|---|---:|---:|---:|
+| Submit a request or inquiry | Yes | Yes | Yes |
+| View own request, including closed | Yes | Yes | Yes |
+| View all requests | No | Yes | Yes |
+| Edit own non-closed request | Yes | Yes | Yes |
+| Edit another user's non-archived request | No | Yes | Yes |
+| Add an input file to own non-closed request | Yes | Yes | Yes |
+| Add input/results to any non-archived request | No | Yes | Yes |
+| Change status and add history note | No | Yes | Yes |
+| Assign a technician or admin | No | Yes | Yes |
+| Download an authorized file or PDF | Own only | Yes | Yes |
+| See own request's ticket state | Own only | Yes | Yes |
+| See the global delivery log | No | Yes | Yes |
+| View an archived request by direct ID | No | No | Yes |
+| Archive a request | No | No | Yes |
+| Archive a file | No | No | Yes |
+| View/manage user activation | No | No | Yes |
+| Manually retry a failed outbox item | No | No | Yes |
+
+There is no permanent purge action in v1. A technician cannot delete or
+archive requests or files. A `Closed` owner request remains readable but cannot
+be edited or receive owner uploads. Once an administrator archives a request,
+it is hidden from owners and technicians even when they try a direct request
+ID; administrators can still view it from the archived listing.
+
+## Account activation
+
+The admin directory displays normalized username, derived role, LDAP profile,
+active state, and last login. An admin may activate or deactivate a non-admin
+account. Activation is an additional gate; it never changes the user's derived
+role. The fixed administrator role is not editable through the application.
+
+When investigating an access report, check both the allowlist-derived role and
+the active flag. Do not add a person to `b_profa` as a substitute for an
+application role change.
+
+## Test mode
+
+`AUTH_MODE=test` exists only for automated tests and isolated local
+development. It can use `PPSV_TEST_USER`, `PPSV_TEST_NAME`, and
+`PPSV_TEST_EMAIL`; the username still receives its role from the same
+allowlist. Production provisioning requires `AUTH_MODE=ldap`.
+
+Never switch a public VM to test mode for maintenance. Diagnose the Apache/LDAP
+path instead, and keep port 3838 loopback-only.
+
+## Spoof-resistance acceptance
+
+Before handoff, prove all of the following:
+
+1. An unauthenticated HTTPS request containing `X-Remote-User: forged-admin`
+   receives an LDAP challenge rather than administrator access.
+2. An authenticated request with that same forged header is represented as the
+   real LDAP user, because Apache removed and replaced the header.
+3. Query strings and cookies cannot select another identity.
+4. Direct network access to port 3838 is unavailable off-host.
+5. A forged Shiny event or direct request ID is rejected by backend
+   authorization when the record belongs to another user.
+
+`scripts/verify_deployment.sh --netrc FILE` automates the first two HTTP checks
+when given a temporary mode-`0600` netrc. Backend authorization cases are also
+covered by the automated test suite.

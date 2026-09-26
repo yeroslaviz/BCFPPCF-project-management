@@ -1,0 +1,210 @@
+---
+title: "Troubleshooting"
+execute:
+  eval: false
+---
+
+Diagnose from the outside inward: TLS/Apache, LDAP, loopback Shiny, application
+logs, database, then external mail/storage. Do not make the system reachable by
+disabling certificate checks, exposing port 3838, switching production to test
+auth, accepting a client identity header, or making files world-writable.
+
+## First-response snapshot
+
+```bash
+sudo systemctl --no-pager --full status apache2 shiny-server.service \
+  ppsv-mail-outbox.timer ppsv-backup.timer
+sudo journalctl -u apache2 -u shiny-server.service --since '-30 minutes'
+sudo apache2ctl configtest
+sudo ss -ltnp | grep 3838
+sudo readlink -f /srv/shiny-server/ppsv-app
+sudo stat -c '%U:%G %a %n' /etc/ppsv-app/ppsv-app.env \
+  /srv/ppsv-app-data/ppsv_projects.db
+```
+
+Do not print the entire environment file into a ticket or shared terminal log;
+it contains SMTP credentials.
+
+## HTTPS or redirect failure
+
+Check both public routes without `-k`:
+
+```bash
+curl -I http://ppcf-vm.biochem.mpg.de/
+curl -I https://ppcf-vm.biochem.mpg.de/
+sudo apache2ctl configtest
+sudo tail -n 100 /var/log/apache2/ppsv-app-ssl-error.log
+```
+
+Expected: HTTP redirects to HTTPS, and HTTPS `/` redirects to `/ppsv-app/`
+after normal CA validation. If validation fails, inspect the leaf SAN, expiry,
+bundle order, intermediate chain, and key match. Rerun provisioning with the
+correct TLS source files; do not copy a guessed key or a CSR into place.
+
+## `/ppsv-app/` returns 404 or 502
+
+```bash
+sudo readlink -f /srv/shiny-server/ppsv-app
+sudo test -f /srv/shiny-server/ppsv-app/app.R
+curl -I http://127.0.0.1:3838/ppsv-app/
+sudo journalctl -u shiny-server.service -n 150 --no-pager
+sudo find /var/log/shiny-server -maxdepth 1 -type f -name '*ppsv*' -print
+```
+
+A 404 normally means the active symlink/release or proxy path is wrong. A 502
+normally means Shiny is down or not listening. Confirm the active release has
+`app.R`, `renv.lock`, and its restored library, then use the deployment or
+rollback script. Do not copy mutable state into the release to make it start.
+
+## LDAP prompt succeeds but the application has no identity
+
+Confirm only non-secret settings and the active vhost:
+
+```bash
+sudo grep -E '^(AUTH_MODE|PPSV_PUBLIC_URL)=' /etc/ppsv-app/ppsv-app.env
+sudo apache2ctl -M | grep -E 'authnz_ldap|headers|proxy|proxy_wstunnel'
+sudo grep -n 'RequestHeader.*X-Remote' \
+  /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf
+sudo tail -n 100 /var/log/apache2/ppsv-app-ssl-error.log
+```
+
+`AUTH_MODE` must be `ldap`. Apache must remove client identity headers at
+virtual-host scope and set authenticated values inside the protected location.
+Do not add an identity query string, cookie, app-local login, default password,
+or `.Renviron` workaround.
+
+If an LDAP attribute is legitimately absent, name/email may be entered manually
+and remain unverified. That is different from a missing authenticated username,
+which must fail closed.
+
+## A user has the wrong role or cannot sign in
+
+Normalize the username to lowercase and compare it with the fixed allowlist in
+`ppsv-app/R/config.R`. Roles cannot be edited in the admin directory and do not
+come from `b_profa`. Check the account's active flag and last login in the admin
+directory.
+
+If the account is inactive, an administrator may reactivate the non-admin user.
+If the allowlist is wrong, make a reviewed code change with authorization tests
+and deploy a new release; do not edit a database role.
+
+## Database startup or migration error
+
+```bash
+sudo -u ppsvf-shiny-user sqlite3 /srv/ppsv-app-data/ppsv_projects.db \
+  'PRAGMA integrity_check; SELECT * FROM schema_migrations ORDER BY version;'
+sudo stat -c '%U:%G %a %n' /srv/ppsv-app-data/ppsv_projects.db*
+sudo journalctl -u shiny-server.service -n 150 --no-pager
+```
+
+Integrity must be `ok`; database, WAL, and SHM files must remain private to the
+service identity/group. A deployment initializes the database only when absent
+and applies later migrations transactionally. Do not point PPSV at
+`ms_projects.db`, use a reset flag, or delete the database as a repair.
+
+For integrity failure, stop writers, preserve evidence, verify the newest
+external backup, and follow [Backup and restore](backup-restore.qmd). For a code
+compatibility problem, roll back code first; remember that migrations remain.
+
+## Ticket delivery is pending, retrying, or failed
+
+```bash
+sudo systemctl start ppsv-mail-outbox.service
+sudo systemctl status ppsv-mail-outbox.service --no-pager
+sudo journalctl -u ppsv-mail-outbox.service -n 150 --no-pager
+```
+
+In the staff delivery log, inspect sender, recipient, reply-to, mode, attempt
+count, next attempt, and last error.
+
+- `disabled` or a suppressed configuration-error row means the request was
+  saved but delivery was intentionally not attempted.
+- Authentication or relay errors require SMTP-owner review; do not substitute
+  the editable form email.
+- An LDAP-`From` rejection should activate the fixed service-sender fallback
+  immediately.
+- Fixed-sender failures retry at the documented schedule and remain durable.
+- Only an admin can reset a failed row for manual retry.
+
+Before retrying, determine whether the ticket or acknowledgement actually
+arrived despite an ambiguous timeout. A duplicate ticket is worse than leaving
+the row failed while the incident is investigated.
+
+If the requester got two acknowledgements, repeat the real ticket behavior test
+and correct `PPSV_DIRECT_ACK`; do not alter stored delivery rows to hide it.
+
+## Upload fell back to local storage
+
+Confirm the mount identity, permissions, and service-user access:
+
+```bash
+findmnt -T /fs/pool/pool-ppsvf-projects
+sudo getfacl /fs/pool/pool-ppsvf-projects
+sudo -u ppsvf-shiny-user test -w /fs/pool/pool-ppsvf-projects
+sudo find /srv/ppsv-app-data/uploads_pending_pool -maxdepth 3 -type f -print
+```
+
+Do not recursively `chmod 777`, `chmod 666`, or `chown` the facility pool. Ask
+the storage owner to restore the mount/ACL. When it is writable, run:
+
+```bash
+sudo systemctl start ppsv-pool-reconcile.service
+sudo journalctl -u ppsv-pool-reconcile.service -n 150 --no-pager
+```
+
+Reconciliation deliberately leaves source copies. Investigate checksum or
+destination conflicts individually instead of overwriting them.
+
+If neither pool nor fallback is writable, submissions containing files are
+correctly rejected. Repair storage; never accept a record that silently loses
+an upload.
+
+## File download reports missing, unsafe, or checksum failure
+
+Do not bypass the authorized download handler. Compare the database manifest
+with the configured root, check for a changed mount, symlink, moved file, or
+checksum mismatch, and preserve the suspect file. Restore from the matching
+pool snapshot/fallback backup only after identifying the correct recovery
+point.
+
+An archived file remains stored but is omitted from the normal manifest. Only
+an administrator can archive it.
+
+## Backup job failed
+
+```bash
+sudo systemctl status ppsv-backup.service --no-pager
+sudo journalctl -u ppsv-backup.service -n 150 --no-pager
+sudo grep '^PPSV_BACKUP_DIR=' /etc/ppsv-app/ppsv-app.env
+findmnt -T /the/configured/backup/path
+df -h /the/configured/backup/path
+```
+
+Common causes are a missing external mount, no free space, permissions, a held
+operation lock, or SQLite integrity failure. Confirm the path is the intended
+external filesystem, not an accidentally created directory on `/`. Fix the
+cause and start the service again; then verify new artifacts and sidecars and
+run the read-only restore check.
+
+## PDF rendering problem
+
+Confirm the locked R environment was restored and that font/image system
+libraries passed `scripts/check_requirements.sh`. Reproduce with a representative
+Unicode/multiline request. PDF failure must not modify request state. Do not add
+cost, invoice, or legacy templates as a workaround.
+
+## Deployment failed after migration
+
+The deploy script restores the previous code symlink if the new release fails
+its loopback health check, but a committed database migration remains. Read the
+deployment error and Shiny log, then choose a release compatible with the
+current schema. Use database restore only with incident authorization and the
+explicit data-loss confirmation described in [Backup and restore](backup-restore.qmd).
+
+## Escalation bundle
+
+Provide the incident owner with timestamps, release ID/revision, affected
+request code (not secret form content), relevant unit status/log excerpts,
+outbox error text, database integrity result, mount identity, and steps already
+tried. Redact SMTP password, LDAP credentials, TLS private key, form sequences,
+and other sensitive request data.

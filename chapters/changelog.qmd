@@ -1,0 +1,35 @@
+---
+title: "Change Log"
+---
+
+## Summary so far
+
+As of 2026-09-26, the copied BCFMS/MS codebase has been replaced by a PPSV
+repository delivery. The new app is branded for PPSV, starts from a fresh
+database, uses the PPSV service modules and inquiry flow, stores requests with
+the shared `PPSV000001` sequence, records the required status/history/mail/file
+metadata, and excludes the old MS cost, invoice, sample-table, and data-release
+workflows.
+
+The repository now contains the Shiny app, database migrations, tests,
+deployment and provisioning scripts, Apache/Shiny templates, backup and restore
+helpers, example non-secret configuration, and this operator guide. The code was
+verified locally with R parsing, testthat tests, shell syntax checks, Quarto
+rendering, and a browser smoke test.
+
+Production activation is still gated on four administrator-owned items: the
+matching TLS private key, authorization of `ppsv-service@biochem.mpg.de`, a real
+ticket auto-reply/requester test, and an external backup destination plus pool
+snapshot policy.
+
+## Latest repository changes
+
+- Added PPSV-specific Shiny modules, database schema, validation, PDF export,
+  mail outbox, file storage, authorization, and admin views.
+- Added idempotent provisioning, deployment, rollback, verification, backup,
+  restore, pool reconciliation, and mail-processing scripts.
+- Added PPSV operator documentation covering setup, fields, LDAP, SMTP,
+  storage, TLS, backup/restore, acceptance, troubleshooting, and local
+  development.
+- Removed the copied MS runtime assumptions from the delivered application:
+  production uses a fresh PPSV database and does not migrate `ms_projects.db`.

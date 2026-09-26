@@ -1,0 +1,141 @@
+---
+title: "Field Dictionary"
+execute:
+  eval: false
+---
+
+`PPSV_Submission_form.xlsx` is the source reference for the service-submission
+contract. The application preserves its 18 required and eight optional fields.
+This chapter records the runtime labels, storage keys, controls, and validation
+rules so form, migration, test, and PDF changes can be reviewed against one
+contract.
+
+## Request type selector
+
+The selector is required and has an empty default. Its UI choices are the eight
+service modules below followed by `General inquiry / consultation`. Selecting
+a service shows its description, a safe HTTPS link, and the common protein
+form. General inquiry uses a separate conditional form and is not inserted into
+the `service_modules` table.
+
+### Seeded service modules
+
+The order, names, descriptions, and URLs below match the version-controlled
+seed data.
+
+1. **Molecular cloning** — Molecular cloning assists you with access to a
+   series of vectors and protocols for single - or multigene assembly. An
+   online primer design tool is available for cloning into the parallel pCoofy
+   vector series. [Service page](https://max.mpg.de/sites/biochem/Forschungsservice/Protein-Production/Seiten/Molecular-Cloning.aspx)
+2. **Host repertoire for expression optimization** — With our expression host
+   repertoire including bacteria, yeast, insect and mammalian cells we will
+   identify the system most appropriate for your target protein. Parallel
+   screening aims at achieving high expression levels of cytoplasmic or
+   secreted proteins. [Service page](https://max.mpg.de/sites/biochem/Forschungsservice/Protein-Production/Seiten/Host-repertoire.aspx)
+3. **Large Scale Production** — We produce bacteria and yeast at high cell
+   density in stirred tank reactors from 1 to 10 L including protocols for
+   metabolic labelling. Insect and mammalian cells are cultivated in shake
+   flasks up to 5 L scale. [Service page](https://max.mpg.de/sites/biochem/Forschungsservice/Protein-Production/Seiten/Up-scale-production.aspx)
+4. **Protein Purification** — We establish a purification strategy for your
+   target protein if no protocols are available. In addition to standard
+   chromatography procedures (affinity, IEX and SEC) we apply special protocols
+   like additive screens, protein refolding etc for difficult targets.
+   [Service page](https://max.mpg.de/sites/biochem/Forschungsservice/Protein-Production/Seiten/Protein-Purification.aspx)
+5. **Protein Analysis** — As final quality control of the delivered protein,
+   we routinely assess purity, intact mass and integrity / homogeneity by
+   SDS-PAGE, LC-MS, DLS + analytical gel filtration. Additional characterization
+   like CD-spectroscopy or nanoDSF is performed if required.
+   [Service page](https://max.mpg.de/sites/biochem/Forschungsservice/Protein-Production/Seiten/Quality-Control.aspx)
+6. **Macromolecular Crystallisation** — Automated Macromolecular cristallisation
+   screening and optimisation.
+   [Service page](https://max.mpg.de/sites/biochem/Forschungsservice/Protein-Production/Seiten/Macromolecular%20Crystallisation.aspx)
+7. **X-Ray Crystallography** — We characterize macromolecular crystals using
+   X-Ray Crystallography.
+   [Service page](https://max.mpg.de/sites/biochem/Forschungsservice/Protein-Production/Seiten/Crystallography.aspx)
+8. **Structure Modeling and Validation** — We can refine build and validate
+   macromolecular structures (X-ray and CryoEM). We can also support the
+   depostion of structure to the Protein Data Bank.
+   [Service page](https://max.mpg.de/sites/biochem/Forschungsservice/Protein-Production/Seiten/Structure%20Modelling%20and%20Validation.aspx)
+
+External links must remain HTTPS URLs from the seeded catalogue and open as
+ordinary external links; request data is never appended to them.
+
+## Required service fields
+
+All 18 fields are required for every service request. Literal `N/A` is accepted
+for a mandatory textual scientific field when the selected service genuinely
+makes it inapplicable. `N/A` is not a substitute for contact information or a
+required positive number.
+
+| # | Display label | Storage key | Control and rule |
+|---:|---|---|---|
+| 1 | Name | `contact_name` | Text; LDAP value is read-only and verified. A missing LDAP value may be entered and is marked unverified. |
+| 2 | E-mail | `contact_email` | Valid email syntax; LDAP value is read-only and verified. A manual value is marked unverified. |
+| 3 | Research group | `research_group` | Text, prefilled when LDAP provides it. |
+| 4 | Phone | `phone` | Text, prefilled when LDAP provides it. |
+| 5 | Billing code | `billing_code` | Text. It is project attribution only; the system does not calculate costs. |
+| 6 | Protein name | `protein_name` | Text. |
+| 7 | UniProt ID | `uniprot_id` | Text. |
+| 8 | Source organism | `source_organism` | Text. |
+| 9 | Expression construct | `expression_construct` | Multiline text. |
+| 10 | Tag(s) | `tags` | Text. |
+| 11 | Expression host | `expression_host` | Text. |
+| 12 | Antibiotic resistance | `antibiotic_resistance` | Text. |
+| 13 | Storage buffer | `storage_buffer` | Multiline text. |
+| 14 | References / previous experiments | `references_previous_experiments` | Multiline text; URLs, citations, and line breaks are preserved. |
+| 15 | Amount required (mg) | `amount_required_mg` | Number strictly greater than zero. |
+| 16 | Final concentration required (mg/mL) | `final_concentration_mg_ml` | Number strictly greater than zero. |
+| 17 | Delivery | `delivery_state` | One of `Frozen` or `Unfrozen`. |
+| 18 | Aliquot size | `aliquot_size` | Text because the workbook does not define one unit; requester must include value and unit. |
+
+## Optional service fields
+
+The following eight fields may be blank.
+
+| # | Display label | Storage key | Control and rule |
+|---:|---|---|---|
+| 1 | Size uncleaved (Da) | `size_uncleaved_da` | Optional number; strictly greater than zero when supplied. |
+| 2 | Size cleaved (Da) | `size_cleaved_da` | Optional number; strictly greater than zero when supplied. |
+| 3 | Cleavage Size | `cleavage_size` | Optional text because its unit/meaning is not defined; include value and unit when supplied. |
+| 4 | Sequence (uncleaved) | `sequence_uncleaved` | Optional multiline text. |
+| 5 | Sequence (cleaved) | `sequence_cleaved` | Optional multiline text. |
+| 6 | Purification strategy | `purification_strategy` | Optional multiline text. |
+| 7 | Tag removal required? | `tag_removal_required` | Nullable selector: blank, `Yes`, or `No`. |
+| 8 | Localisation | `localisation` | Optional text. |
+
+Unicode and multiline values are retained in the database and PPSV PDF. The PDF
+also includes request/module information, current status and history, and the
+file manifest; it contains no price, cost, or invoice section.
+
+## General inquiry / consultation
+
+Choosing General inquiry hides every protein field and the billing code. The
+required fields are:
+
+- Name
+- E-mail
+- Research group
+- Phone
+- Subject
+- Message
+
+The requester may select one optional related service and attach optional
+files. The item is saved as `request_kind = inquiry` with one inquiry-detail
+row and receives its ID from the same concurrency-safe sequence as service
+requests.
+
+## Contact verification and mail use
+
+LDAP-provided name and email are read-only. If LDAP omits either attribute, the
+requester may enter it manually and the stored contact snapshot remains visibly
+unverified. An editable form email is never used as SMTP `From`, `Reply-To`, or
+an acknowledgement recipient. Only the verified LDAP email associated with the
+authenticated login may be used for those purposes.
+
+## Editing rules
+
+An owner may edit their own request until it is `Closed`, and staff may edit
+all non-archived requests. Status and assignment are staff-only. Request edits
+do not overwrite the authenticated owner or silently turn a staff member into
+the contact. Every status change records the actor, UTC timestamp, and an
+optional note.

@@ -1,0 +1,21 @@
+Package: ppsvApp
+Type: Project
+Title: PPSV Project Management System
+Version: 1.0.0
+Authors@R: person("PPSV Facility", role = c("aut", "cre"), email = "ppsv-request@biochem.mpg.de")
+Description: Internal Shiny application for PPSV service requests, inquiries,
+    file delivery, status tracking, ticket mail, and administrative workflows.
+License: MIT
+Encoding: UTF-8
+Imports:
+    DBI,
+    digest,
+    DT,
+    mailR,
+    png,
+    rJava,
+    RSQLite,
+    shiny
+Suggests:
+    testthat
+Config/testthat/edition: 3

@@ -1,0 +1,201 @@
+---
+title: "Mail and Storage Operations"
+execute:
+  eval: false
+---
+
+## Transaction boundary
+
+Submitting a request commits the request and its mail-outbox records in one
+SQLite transaction. SMTP is performed later by a separate worker. This means a
+mail outage cannot discard an otherwise valid request, and a saved request is
+never displayed as a successful ticket until the delivery record says so.
+
+The mail worker runs every minute through `ppsv-mail-outbox.timer`. Start an
+immediate run with:
+
+```bash
+sudo systemctl start ppsv-mail-outbox.service
+sudo journalctl -u ppsv-mail-outbox.service -n 100 --no-pager
+```
+
+## Mail identities that may be used
+
+There are only two trusted sender identities:
+
+- the provisioned service address in `PPSV_MAIL_FROM`, normally
+  `ppsv-service@biochem.mpg.de`; and
+- the authenticated LDAP email, but only when the current profile marks it as
+  verified and an end-to-end test has authorized `ldap_from` mode.
+
+An editable email in the request form is never an SMTP `From`, `Reply-To`, or
+acknowledgement recipient. If LDAP has no verified email, the service identity
+sends the ticket without `Reply-To`; acknowledgement is suppressed and the
+condition remains visible to staff.
+
+The application does not provide inbound-mail forwarding or a mailbox relay.
+Ticket delivery also fails closed until
+`PPSV_SERVICE_IDENTITY_AUTHORIZED_ACK=1`. Every enabled ticket mode requires
+`PPSV_TICKET_E2E_TEST_ACK=1` after the real requester/auto-reply test; changing
+only the mode string cannot enable an unproved sender or suppress the direct
+acknowledgement without evidence that the ticket reply is reliable. The request
+remains saved and staff see a suppressed configuration-error delivery row.
+
+## Ticket modes
+
+| `PPSV_TICKET_MODE` | Primary ticket | Failure behavior | Acknowledgement behavior |
+|---|---|---|---|
+| `disabled` | No SMTP attempt; a suppressed outbox row is retained | Request remains saved and visibly not delivered | None |
+| `service_reply_to` | `From: PPSV_MAIL_FROM`; verified LDAP address in `Reply-To` when available | Fixed-sender ticket follows the normal retry schedule | With `PPSV_DIRECT_ACK=true`, direct acknowledgement is released only after the ticket succeeds |
+| `ldap_from` | Verified LDAP address in `From` | LDAP sender is tried once; on failure the durable service-sender fallback is activated immediately | No direct acknowledgement after a successful LDAP-sender ticket; if fixed-sender fallback succeeds, the configured direct acknowledgement may be released |
+
+The acknowledgement includes a ticket-link sentence only if the ticket adapter
+returns a real ticket URL. An application request URL is not presented as a
+ticket URL.
+
+## Required SMTP and ticket decision test
+
+Use a dedicated real LDAP test account and a non-production test request. Keep
+the delivery-log rows and received-message headers as evidence.
+
+### 1. Authorize the service sender
+
+Ask the SMTP administrators to confirm that the configured relay account may
+send as `ppsv-service@biochem.mpg.de`. Configure the safe baseline:
+
+```ini
+PPSV_TICKET_MODE=service_reply_to
+PPSV_MAIL_FROM=ppsv-service@biochem.mpg.de
+PPSV_DIRECT_ACK=true
+```
+
+Submit once and prove that the ticket recipient receives the message, `From`
+is the service identity, and `Reply-To` is exactly the verified LDAP email.
+Also prove that an unverified form email does not appear in either header.
+
+### 2. Determine ticket auto-reply behavior
+
+Observe whether the real ticket system sends its requester acknowledgement to
+the `Reply-To` address in `service_reply_to` mode.
+
+- If it reliably does so and the content is accepted by PPSV, set
+  `PPSV_DIRECT_ACK=false` to prevent a duplicate.
+- If it does not, keep `PPSV_DIRECT_ACK=true`; the PPSV acknowledgement is
+  released only after successful fixed-sender ticket delivery.
+
+Repeat the test after configuration and prove the requester receives exactly
+one acknowledgement.
+
+### 3. Test authenticated LDAP `From`
+
+Only after the relay team says LDAP sender addresses are allowed, set
+`PPSV_TICKET_MODE=ldap_from` and submit with the real test account. Prove both:
+
+1. the relay accepts the authenticated LDAP address as `From`; and
+2. the ticket system's requester auto-reply reaches that same LDAP address.
+
+If either condition fails, return to `service_reply_to`. Do not compensate by
+using editable form email. Also force or simulate LDAP-`From` rejection once to
+prove that the service-sender fallback is activated and that the requester
+still receives no duplicate acknowledgement.
+
+Record the chosen mode, relay owner, test date, ticket identifier, exact sender
+headers, acknowledgement count, and expected retest interval in the handoff
+record.
+
+## Delivery retries and status
+
+The fixed-sender ticket and acknowledgement retry at these elapsed offsets:
+
+1. immediately;
+2. 5 minutes;
+3. 30 minutes;
+4. 2 hours;
+5. 12 hours; and
+6. 24 hours.
+
+Every attempt records its number, UTC timestamp, success flag, and error. Rows
+left in `sending` by an interrupted worker are recovered after the lease. After
+automatic attempts are exhausted, an administrator may retry a failed row from
+the delivery log. A technician may inspect delivery state but cannot invoke the
+admin retry action.
+
+If both a primary and fallback send fail, the request remains saved with failed
+delivery state. Do not tell the requester a ticket exists until an outbox row is
+actually `sent`.
+
+## Storage layout
+
+Files are outside the web root. For request `PPSV000001`, the primary layout is:
+
+```text
+/fs/pool/pool-ppsvf-projects/PPSV000001/
+├── inputs/
+└── results/
+```
+
+The application treats this pool as available only when `findmnt` reports the
+exact operator-reviewed `PPSV_POOL_EXPECTED_SOURCE`. If the mount disappears
+and leaves an ordinary local mount-point directory behind, uploads use the
+fallback instead of writing into the underlying system disk. Local-directory
+pool use is an explicit test/development override and must remain disabled in
+production.
+
+Requesters may add input files to their own non-closed requests. Staff may add
+inputs and results. The application preserves the sanitized original filename
+as metadata, but stores content under a generated name with size, MIME type,
+uploader, location, and SHA-256 checksum.
+
+The configured limit, normally 75 MB, applies cumulatively to active files in a
+request. Optional request-submission files are rejected if neither the primary
+pool nor fallback is writable; they are never silently discarded. A request
+without files can still be saved with storage state `none`.
+
+Path traversal and symbolic links are rejected. Directories use mode `2770`
+and files `0660`; setgid and default ACLs preserve access for
+`ppsvf-shiny-user` and `b_profa`. Never change these paths to `0777` or `0666`.
+
+## Pool outage and fallback
+
+When the pool is unavailable or unsafe, the application stores new files under:
+
+```text
+/srv/ppsv-app-data/uploads_pending_pool/PPSV000001/{inputs,results}
+```
+
+The request is visibly flagged with fallback storage state. The fallback is
+persistent and included in the nightly backup; it is not a temporary directory
+inside a release.
+
+Before reconciliation, verify that the intended pool is mounted and writable
+as the service user. Then run:
+
+```bash
+sudo systemctl start ppsv-pool-reconcile.service
+sudo journalctl -u ppsv-pool-reconcile.service -n 100 --no-pager
+```
+
+The reconciliation operation:
+
+1. reads only active database records whose location is `fallback`;
+2. validates that each source is inside the fallback root;
+3. verifies its recorded SHA-256;
+4. copies it to the matching pool request/category directory without following
+   symlinks or overwriting a different file;
+5. verifies the destination checksum; and
+6. updates the database location only after a verified copy.
+
+The fallback source remains as a safety copy. Remove it only through a separate
+operator retention decision after the database, fallback backup, destination
+checksum, and facility snapshot have all been verified. The application itself
+exposes no permanent purge.
+
+## File archive and download
+
+Archiving is soft and admin-only. It records actor and timestamp and hides the
+file from the normal manifest; it does not unlink the stored content. A
+technician cannot archive or delete a file.
+
+Every download repeats request authorization, validates that the stored path is
+inside the configured root, rejects unsafe paths, and verifies the checksum.
+The browser never receives a raw server path.

@@ -1,0 +1,210 @@
+---
+title: "Acceptance and Handoff"
+execute:
+  eval: false
+---
+
+This checklist is the production-readiness record. Record date, operator,
+application revision, release ID, evidence location, and result for every item.
+A repository build can be complete while VM-side acceptance remains pending.
+
+## External readiness gates
+
+All four items must be resolved before declaring production ready.
+
+| Gate | Required evidence | Owner/result |
+|---|---|---|
+| Matching TLS private key | Exact key path, certificate serial/SAN/expiry, matching public-key hashes, successful chain validation | |
+| Service sender authorization | Written relay authorization for `ppsv-service@biochem.mpg.de` under the configured SMTP account | |
+| Real ticket requester/auto-reply test | Ticket ID, headers, requester address, chosen mode, and proof of exactly one acknowledgement | |
+| External backup and pool policy | External mount identity, retention, alerting, successful restore drill, and approved pool snapshot/restore procedure | |
+
+An unresolved row is a release blocker. Do not replace missing evidence with an
+assumption or a successful local unit test.
+
+## Automated repository checks
+
+From a clean checkout with locked dependencies restored:
+
+```bash
+Rscript -e 'renv::restore(project = "ppsv-app", prompt = FALSE)'
+Rscript tests/testthat.R
+bash -n scripts/*.sh deploy.sh
+```
+
+Record the complete output. The suite must cover fresh schema/seeds, the exact
+roles/modules/statuses, shared request IDs, the 18+8 field contract, inquiry
+branch, Unicode/multiline edits, archive behavior, PDF content, direct backend
+authorization, mail branches/retries, and unsafe storage cases. A failed or
+skipped security-critical test is not accepted without a reviewed issue and
+explicit risk decision.
+
+## Deployment verifier
+
+Create a short-lived mode-`0600` netrc for a dedicated LDAP test account. This
+allows the verifier to use normal CA validation while proving authenticated,
+spoofed-header, and WebSocket behavior:
+
+```text
+machine ppcf-vm.biochem.mpg.de
+login LDAP_TEST_USERNAME
+password LDAP_TEST_PASSWORD
+```
+
+```bash
+sudo chmod 600 /root/ppsv-test.netrc
+sudo scripts/verify_deployment.sh \
+  --netrc /root/ppsv-test.netrc \
+  --role-user ORDINARY_LDAP_USERNAME \
+  --role-technician grzejszc \
+  --role-admin yeroslaviz
+sudo shred -u /root/ppsv-test.netrc
+```
+
+Never add `-k` or `--insecure` to make a TLS check pass. Full verification also
+fails until `PPSV_SERVICE_IDENTITY_AUTHORIZED_ACK`,
+`PPSV_TICKET_E2E_TEST_ACK`, and `PPSV_POOL_SNAPSHOT_POLICY_ACK` are `1`; each
+value must be changed only after its evidence is recorded. It verifies that the
+live backup mount source exactly matches `PPSV_BACKUP_EXPECTED_SOURCE` and the
+facility pool matches `PPSV_POOL_EXPECTED_SOURCE`.
+
+## Network, TLS, and redirects
+
+- [ ] `curl -I http://ppcf-vm.biochem.mpg.de/` redirects to canonical HTTPS.
+- [ ] `curl -I https://ppcf-vm.biochem.mpg.de/` validates the CA/chain and
+  redirects to `/ppsv-app/`.
+- [ ] The presented certificate SAN covers `ppcf-vm.biochem.mpg.de`, is not
+  near expiry, and matches the installed private key.
+- [ ] An unauthenticated `/ppsv-app/` request receives the expected LDAP
+  challenge.
+- [ ] `ss -ltnp` shows port 3838 only on `127.0.0.1` (or loopback equivalent),
+  never `0.0.0.0`, `[::]`, or an external address.
+- [ ] Apache proxies both HTTP and WebSocket traffic only to loopback.
+- [ ] In an authenticated browser, DevTools shows the Shiny WebSocket upgrade
+  succeeding and the live session continues after reactive input changes.
+- [ ] HSTS, `nosniff`, and same-origin referrer headers are present on HTTPS.
+
+## LDAP and spoof resistance
+
+- [ ] A normal LDAP user can sign in and sees the expected normalized username,
+  name, email, group, and phone values.
+- [ ] Verified LDAP name/email are read-only; missing values are editable and
+  visibly marked unverified.
+- [ ] A forged unauthenticated `X-Remote-User: forged-admin` header does not
+  bypass LDAP.
+- [ ] The same header on an authenticated request is replaced by the real LDAP
+  identity.
+- [ ] A query parameter or cookie cannot choose or replace identity.
+- [ ] Production environment contains `AUTH_MODE=ldap`; there is no local
+  password or default credential.
+- [ ] Deactivating a non-admin account blocks it; reactivation restores only
+  its allowlist-derived role.
+- [ ] `b_profa` membership alone grants no application privilege.
+
+## Three-role authorization exercise
+
+Use one ordinary LDAP account, one allowlisted technician, and one allowlisted
+administrator.
+
+### User
+
+- [ ] Can submit a service request and a general inquiry.
+- [ ] Can view/edit only their own non-closed request and add an input file.
+- [ ] Can still view but cannot edit a `Closed` own request.
+- [ ] Cannot access another owner's direct request ID, file, or PDF.
+- [ ] Cannot change status/assignee, upload a result, archive, manage users, or
+  retry mail, including through forged/direct Shiny events.
+
+### Technician
+
+- [ ] Can view/edit all requests, add inputs/results, select any of the seven
+  statuses, add a history note, and assign a technician/admin.
+- [ ] Cannot archive a request or file, manage users, or run admin mail retry.
+
+### Admin
+
+- [ ] Has staff functions plus soft archive for requests/files.
+- [ ] Can view the user directory and activate/deactivate a non-admin account.
+- [ ] Sees roles as derived/read-only.
+- [ ] Can retry only a failed outbox item.
+- [ ] Has no permanent purge operation.
+
+## Form, lifecycle, and PDF exercise
+
+- [ ] The request-type selector starts empty and contains eight ordered services
+  plus `General inquiry / consultation`.
+- [ ] Each service displays the seeded description and safe external HTTPS link.
+- [ ] A service form shows exactly 18 required and eight optional workbook
+  fields; positive-number and nullable Yes/No validation behave as documented.
+- [ ] `Cleavage Size` and `Aliquot size` accept value+unit text; literal `N/A`
+  works only for required textual fields.
+- [ ] General inquiry hides protein and billing fields, requires contact,
+  subject, and message, and stores an optional related service without adding a
+  ninth module row.
+- [ ] Concurrent test submissions use one gap-safe allocation mechanism and
+  return unique sequential `PPSVnnnnnn` IDs across both request kinds.
+- [ ] Unicode, multiline values, edits, assignment, and all seven status changes
+  round-trip correctly; history records actor, UTC timestamp, and note.
+- [ ] The PPSV PDF contains request/module, contact/scientific fields, current
+  status/history, and file manifest, with no cost/invoice content.
+
+## Mail exercise
+
+- [ ] Request and outbox records commit together before SMTP is attempted.
+- [ ] Chosen `PPSV_TICKET_MODE` has the evidence required by the decision test.
+- [ ] Form email is absent from `From`, `Reply-To`, and acknowledgement recipient.
+- [ ] Missing LDAP email uses the service sender without `Reply-To`, suppresses
+  acknowledgement, and is visibly flagged.
+- [ ] Fixed-sender failures remain durable and follow immediate, 5-minute,
+  30-minute, 2-hour, 12-hour, and 24-hour attempts.
+- [ ] LDAP-`From` rejection activates the service fallback deterministically.
+- [ ] Both-send failure is shown as failed; the UI never claims ticket success.
+- [ ] The requester receives exactly one acknowledgement, and a ticket-link
+  sentence appears only when a real ticket URL is returned.
+
+## Storage and permissions exercise
+
+Inspect ACLs and create a disposable service-user probe:
+
+```bash
+sudo getfacl /fs/pool/pool-ppsvf-projects
+probe="/fs/pool/pool-ppsvf-projects/.ppsv-handoff-$$"
+sudo -u ppsvf-shiny-user bash -c \
+  'umask 0007; mkdir "$1"; chmod 2770 "$1"; touch "$1/probe"; chmod 0660 "$1/probe"' \
+  bash "$probe"
+sudo stat -c '%U:%G %a %n' "$probe" "$probe/probe"
+sudo -u ppsvf-shiny-user unlink "$probe/probe"
+sudo -u ppsvf-shiny-user rmdir "$probe"
+```
+
+- [ ] Service user writes primary pool and fallback; created directories/files
+  are `2770`/`0660` with the expected ACL.
+- [ ] A request appears at `PPSVnnnnnn/{inputs,results}` and the database keeps
+  generated name, original name, size, uploader, location, and SHA-256.
+- [ ] Traversal names, symlinks, and unauthorized direct IDs are rejected.
+- [ ] Cumulative 75 MB limit is enforced.
+- [ ] With the pool unavailable, a file goes to persistent fallback and the
+  request is flagged; with both stores unavailable, file submission fails.
+- [ ] Reconciliation verifies both checksums before changing the database and
+  does not overwrite a mismatched destination.
+- [ ] A technician cannot archive/delete a file; an admin archive is soft.
+
+## Backup and restore exercise
+
+- [ ] Nightly timer is enabled and a fresh database backup and fallback archive
+  exist on the verified external mount with matching SHA-256 sidecars.
+- [ ] Retention is 30 days and old-artifact removal has been observed safely.
+- [ ] `restore_backup.sh` read-only validation succeeds.
+- [ ] A full restore has succeeded on a disposable environment and the evidence
+  includes record/file/PDF/download checks.
+- [ ] Facility pool snapshot and single-request/full-pool restore procedures are
+  approved and tested.
+- [ ] Operators understand that code rollback does not roll back migrations or
+  data, and database restore can discard newer requests.
+
+## Sign-off
+
+Production readiness may be declared only when the four external gates and all
+applicable checklist items have evidence. Record any deferred non-critical item
+with owner, deadline, and accepted risk. Never describe repository delivery as
+proof that TLS, SMTP, ticket, backup, or pool operations have passed on the VM.

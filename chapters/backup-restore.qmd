@@ -1,0 +1,169 @@
+---
+title: "Backup and Restore"
+execute:
+  eval: false
+---
+
+A complete PPSV recovery has three independent parts:
+
+1. the SQLite database;
+2. the persistent fallback directory; and
+3. the primary facility project pool.
+
+The repository backs up the first two. The storage team must provide and test
+the pool snapshot/restore policy separately. A database backup alone is not a
+complete request-file recovery.
+
+## External backup destination
+
+`PPSV_BACKUP_DIR` is mandatory and must point to a mounted external backup
+destination. Provisioning rejects a path that resolves to the VM root
+filesystem unless `PPSV_ALLOW_LOCAL_BACKUP=1` is deliberately used on a test
+VM. Production must not use that override.
+
+Set `PPSV_BACKUP_EXPECTED_SOURCE` to the exact reviewed output of:
+
+```bash
+findmnt -n -o SOURCE -T "$PPSV_BACKUP_DIR"
+```
+
+Every backup and deployment verification compares the live source with that
+value and stops if the mount is missing or changed. This prevents an empty local
+mount point from silently receiving backups.
+
+Record at minimum:
+
+- mount source and target;
+- storage owner and escalation contact;
+- encryption and access policy;
+- capacity alerting;
+- retention policy;
+- snapshot timing relative to the PPSV nightly backup; and
+- the last successful restore-drill evidence.
+
+## Nightly job
+
+`ppsv-backup.timer` runs nightly at 02:15 Europe/Berlin with up to 15 minutes
+of randomized delay and catches up after downtime. The default retention is 30
+days.
+
+The backup service:
+
+- uses SQLite's backup mechanism rather than copying a live database file;
+- writes to a partial file and moves it into place only after success;
+- runs `PRAGMA integrity_check` on the result;
+- creates a SHA-256 sidecar;
+- copies the database backup to a disposable restore probe and opens it through
+  the complete schema/integrity verifier;
+- archives the fallback directory, verifies the archive can be listed, and
+  compares it with the live fallback tree before creating its SHA-256 sidecar;
+  and
+- prunes database/fallback artifacts older than the configured retention.
+
+Run and inspect it manually:
+
+```bash
+sudo systemctl start ppsv-backup.service
+sudo systemctl status ppsv-backup.service --no-pager
+sudo journalctl -u ppsv-backup.service -n 100 --no-pager
+sudo systemctl list-timers ppsv-backup.timer
+```
+
+Do not treat a green timer as proof of recovery. Check that new non-empty
+artifacts and sidecars exist on the expected external mount.
+
+## Verify a backup without changing production
+
+Choose a matching database and optional fallback archive from the same backup
+window. With no `--apply`, the restore tool is read-only: it requires and checks
+the SHA-256 sidecars, SQLite integrity/schema/foreign keys, archive readability,
+and unsafe archive paths.
+
+```bash
+sudo /usr/local/libexec/ppsv-app/restore_backup.sh \
+  --database /external/ppsv/database/ppsv_projects_TIMESTAMP.sqlite \
+  --fallback /external/ppsv/fallback/uploads_pending_pool_TIMESTAMP.tar.gz
+```
+
+Every artifact must have the one-record `.sha256` sidecar created by the backup
+job. A missing, malformed, unsafe, or mismatched sidecar is a hard failure.
+
+## Restore drill
+
+At least after first installation and after material schema/storage changes,
+perform an actual restore on a disposable VM or isolated restore environment:
+
+1. Use the same reviewed application release and an isolated PPSV environment
+   file whose database, fallback, pool, and public URL cannot touch production.
+2. Verify the chosen backup with `restore_backup.sh` without `--apply`.
+3. Apply it in the isolated target with both destructive-confirmation flags.
+4. Start the application and run SQLite integrity and migration checks.
+5. Open representative service and inquiry records, render their PDFs, inspect
+   status history and mail attempts, and download representative files through
+   the authorized path so checksums are exercised.
+6. Restore a corresponding facility-pool snapshot into an isolated path and
+   verify manifest counts and SHA-256 values.
+7. Record artifact names/checksums, application revision, schema version,
+   operator, duration, problems, and remediation.
+
+Do not call backups production-ready until this drill succeeds.
+
+## Applying a production restore
+
+Applying a restore overwrites current database state and can discard every
+request, status update, file record, and mail attempt created after the backup.
+Obtain explicit incident authorization and identify the recovery point first.
+
+The restore command requires both `--apply` and `--confirm-data-loss`:
+
+```bash
+sudo /usr/local/libexec/ppsv-app/restore_backup.sh \
+  --database /external/ppsv/database/ppsv_projects_TIMESTAMP.sqlite \
+  --fallback /external/ppsv/fallback/uploads_pending_pool_TIMESTAMP.tar.gz \
+  --apply \
+  --confirm-data-loss
+```
+
+The script verifies inputs before stopping services, preserves a pre-restore
+database/fallback copy under `/srv/ppsv-app-data/pre_restore/TIMESTAMP`, stages
+replacement state, rejects fallback symlinks, reapplies `2770`/`0660`
+permissions, and restarts Shiny and the mail timer.
+
+After it returns:
+
+1. verify SQLite integrity and schema version;
+2. select a code release compatible with that schema;
+3. restore the primary pool to the same recovery point using the facility
+   storage procedure;
+4. verify pool/fallback files against database checksums;
+5. run `scripts/verify_deployment.sh`;
+6. exercise all three roles and a representative download/PDF; and
+7. inspect the mail outbox before enabling or manually retrying delivery, so an
+   old unsent row does not cause an unexpected duplicate.
+
+Keep the pre-restore directory until the incident owner signs off. Any later
+removal is an explicit operator retention action, not an application purge.
+
+## Pool snapshots
+
+The pool must be covered by the facility storage system; `backup.sh` does not
+recursively archive it. The documented policy must answer:
+
+- snapshot frequency and retention;
+- whether open writes are crash-consistent;
+- how a snapshot is mounted read-only for verification;
+- how a single `PPSVnnnnnn` directory and a full pool are restored;
+- who authorizes a restore; and
+- how restored ownership, setgid mode, default ACL, and checksums are verified.
+
+Align database/fallback backup time and pool snapshot time as closely as the
+storage platform permits. On recovery, report any database file record that is
+newer than the chosen pool snapshot rather than silently dropping it.
+
+## Backup alerts and capacity
+
+Monitor the systemd unit result, external mount availability, free space,
+artifact age, and checksum verification. A locally created path at the expected
+mount point is not evidence that external storage is mounted. If the mount
+disappears, stop and restore it; do not let a local directory silently become
+the backup destination.

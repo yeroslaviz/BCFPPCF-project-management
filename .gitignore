@@ -1,0 +1,47 @@
+# Operating-system and editor state
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+
+# R and Quarto generated state
+.Rhistory
+.RData
+.RDataTmp
+.Ruserdata
+.Rproj.user/
+.quarto/
+_site/
+*_cache/
+*.utf8.md
+*.knit.md
+renv/library/
+renv/staging/
+
+# Secrets and machine-local configuration
+.Renviron
+.env
+*.env
+!scripts/ppsv-app.env.example
+
+# Runtime databases, mail queues, uploads, logs, and backups
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+uploads_pending_pool/
+backups/
+logs/
+
+# R build/check output
+/*.tar.gz
+/*.Rcheck/
+*-Ex.R
+**/*.quarto_ipynb
+
+/.quarto/

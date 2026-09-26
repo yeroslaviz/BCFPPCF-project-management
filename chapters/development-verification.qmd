@@ -1,0 +1,186 @@
+---
+title: "Development and Verification"
+execute:
+  eval: false
+---
+
+## Local isolation
+
+Development must use `AUTH_MODE=test`, a temporary database, and temporary
+storage roots. Never reuse the production environment file or point a local
+process at the facility pool.
+
+```bash
+Rscript -e 'renv::restore(project = "ppsv-app", prompt = FALSE)'
+dev_root="$(mktemp -d)"
+mkdir -p "${dev_root}/pool" "${dev_root}/fallback"
+AUTH_MODE=test \
+PPSV_TEST_USER=developer \
+PPSV_TEST_NAME='Local Developer' \
+PPSV_TEST_EMAIL='developer@example.org' \
+PPSV_DB_FILE="${dev_root}/ppsv.sqlite" \
+PPSV_POOL_ROOT="${dev_root}/pool" \
+PPSV_ALLOW_LOCAL_POOL=1 \
+PPSV_FALLBACK_ROOT="${dev_root}/fallback" \
+PPSV_TICKET_MODE=disabled \
+Rscript -e 'shiny::runApp("ppsv-app", port = 3838, launch.browser = TRUE)'
+```
+
+`PPSV_ALLOW_LOCAL_POOL=1` is limited to an isolated development/test directory.
+Production must keep it at `0` so the application verifies the reviewed mount
+source before treating the facility pool as available.
+
+Roles still come from the fixed allowlist in test mode; a caller-supplied role
+is ignored. Use separate temporary databases when running tests concurrently.
+
+## Source references and domain invariants
+
+Keep `PPSV_Submission_form.xlsx` as the form source reference. A form change is
+not complete until the workbook comparison, validation constants, UI,
+migrations if needed, PDF, mail body, field dictionary, and tests all agree.
+
+Review these invariants on every domain change:
+
+- exactly eight seeded service-module rows in the supplied order;
+- `General inquiry / consultation` is a UI choice stored as
+  `request_kind = inquiry`, never a module row;
+- exactly 18 required and eight optional service fields;
+- exactly seven current-status values;
+- one shared concurrency-safe `PPSVnnnnnn` sequence;
+- roles derived case-insensitively from the fixed allowlist;
+- no cost, price, invoice, sample-table, or data-release model; and
+- no hard-delete API for requests or files.
+
+## Database migration workflow
+
+Never edit a deployed database by hand as the implementation of a schema
+change.
+
+1. Add the next sequential migration in `ppsv-app/R/database.R`.
+2. Make it idempotent through the migration ledger and transactional as a
+   unit.
+3. Preserve every existing PPSV row and constraint unless a reviewed data
+   conversion says otherwise.
+4. Add fresh-schema and previous-version migration tests.
+5. Test rollback-on-error and rerun behavior.
+6. Confirm an unrecognized or legacy database is rejected.
+7. Update the schema/operator documentation.
+
+The deployment command creates a new database only if `PPSV_DB_FILE` is absent.
+Do not add a migration from `ms_projects.db` and do not add a reset option to a
+routine deployment.
+
+## Automated tests
+
+Run from the repository root:
+
+```bash
+Rscript tests/testthat.R
+```
+
+The release suite should prove:
+
+- fresh schema, migration versions, modules, roles, statuses, and absence of
+  legacy/cost tables or content;
+- cross-process or multi-connection request-ID allocation for both request
+  kinds;
+- every required/optional field, conditional inquiry branch, `N/A`, positive
+  numbers, nullable Yes/No, Unicode, and multiline values;
+- owner/staff edits, status notes, assignment, closed/archive rules, and PDF
+  summaries;
+- direct invocation of protected backend actions with another user's ID;
+- mail sender/Reply-To safety, fallback, acknowledgement deduplication, missing
+  LDAP email, total failure, retry timing, and durable attempt state;
+- traversal, unsafe filenames, symlinks, checksum failures, quota, unavailable
+  mounts, reconciliation conflicts, permissions, and downloads; and
+- `shiny::testServer` checks for request-kind switching and staff/admin events.
+
+SMTP tests must use a fake transport; unit tests must not send real mail. File
+tests use temporary roots and must not touch the facility pool.
+
+## Static and packaging checks
+
+```bash
+# Parse all R sources and tests.
+Rscript -e 'files <- c(list.files("ppsv-app", "[.]R$", recursive=TRUE, full.names=TRUE), list.files("tests", "[.]R$", recursive=TRUE, full.names=TRUE)); invisible(lapply(files, parse))'
+
+# Check every shell entry point.
+bash -n scripts/*.sh deploy.sh
+
+# Use shellcheck as an additional review when installed.
+shellcheck scripts/*.sh deploy.sh
+
+# Prove a clean dependency restore in an empty project library/cache context.
+Rscript -e 'renv::restore(project = "ppsv-app", prompt = FALSE)'
+
+# Render the operator book and fail on broken inputs.
+quarto render
+```
+
+The production preflight must also initialize `rJava` and load `mailR` from the
+restored project. A successful package installation without Java initialization
+is not sufficient.
+
+## Dependency updates
+
+Review package source, version, license, and transitive changes before updating
+the lock. After making an intentional package change:
+
+```bash
+Rscript -e 'renv::snapshot(project = "ppsv-app", prompt = FALSE)'
+git diff -- ppsv-app/renv.lock
+```
+
+Restore from scratch and rerun all tests. Do not let deployment resolve an
+unlocked “latest” package. Shiny Server is handled separately through a local
+`.deb` and independently reviewed checksum.
+
+## Targeted browser review
+
+Automated server tests cover conditional branches and authorization, but a
+release candidate also needs a browser pass at the production-width and a
+narrow viewport:
+
+- the selector is empty initially and keyboard accessible;
+- each module description/link is readable;
+- service/inquiry branches switch without stale hidden values being submitted;
+- LDAP verified/unverified indicators are clear;
+- validation errors point to the correct fields;
+- Unicode and multiline review/PDF content is legible;
+- status/history, assignment, file, archive, and delivery-log controls appear
+  only for authorized roles; and
+- a live session uses WebSocket through the authenticated Apache path.
+
+Record screenshots only with synthetic request data. Do not commit user or
+ticket screenshots.
+
+## Repository hygiene
+
+Before release, inspect tracked files and generated output:
+
+```bash
+git status --short
+rg -n --hidden --glob '!.git/**' \
+  'ms_projects[.]db|AUTH_MODE=local|TRUST_PROXY_AUTH_USER_QUERY|chmod 0?777|chmod 0?666|default password|invoice|price list'
+```
+
+Review every match; legitimate negative documentation may mention a prohibited
+term, but application code/assets must not retain legacy MS forms, sample
+templates, cost material, local databases, compiled Quarto output, bug
+screenshots, secrets, or `.Renviron`. Keep the PPSV workbook and tracked PPSV
+logo.
+
+## Release review
+
+A release candidate is ready for administrator handoff when:
+
+1. the worktree is clean and revision identified;
+2. dependency restore, tests, parsing, shell checks, and documentation render
+   pass;
+3. migrations have been tested from a fresh and supported prior schema;
+4. browser/PDF review uses representative synthetic content;
+5. no mutable data or secret can enter the staged release; and
+6. known VM-side gates are listed as pending rather than claimed complete.
+
+The administrator then follows [Deployment and rollback](deployment.qmd) and
+the [Acceptance and handoff](acceptance.qmd) checklist.

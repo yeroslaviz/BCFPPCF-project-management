@@ -1,0 +1,147 @@
+---
+title: "Architecture and Configuration"
+execute:
+  eval: false
+---
+
+## Request path
+
+The public request path is:
+
+```text
+browser
+  -> HTTPS Apache virtual host
+  -> LDAP authentication and trusted profile headers
+  -> HTTP/WebSocket proxy to 127.0.0.1:3838
+  -> Shiny UI/server composition
+  -> authorization and lifecycle functions
+  -> SQLite + external file storage + durable mail outbox
+```
+
+Port 80 only redirects to HTTPS. HTTPS `/` redirects to `/ppsv-app/`.
+Shiny Server must listen on `127.0.0.1:3838`, never a wildcard address.
+
+## Code boundaries
+
+`ppsv-app/app.R` composes the Shiny application. Backend responsibilities are
+separated under `ppsv-app/R/`:
+
+| Module | Responsibility |
+|---|---|
+| `config.R` | PPSV vocabulary, allowlists, environment parsing |
+| `context.R` | initialized runtime context and trusted identity entry point |
+| `auth.R` | role derivation and server-side permission policy |
+| `database.R` | SQLite connection, schema migrations, LDAP profile synchronization |
+| `validation.R` | service and inquiry form contracts |
+| `repository.R` | authorized reads and administrative queries |
+| `lifecycle.R` | request creation, edits, status/assignment, archives, files |
+| `storage.R` | safe names, checksums, pool/fallback storage, reconciliation |
+| `mail.R` | deterministic ticket/acknowledgement planning and SMTP transport |
+| `outbox_repository.R` | durable outbox state, attempts, retries, admin retry |
+| `pdf.R` | PPSV request summary export |
+
+UI controls may hide unavailable actions, but the modules repeat authorization
+using the active database user and requested record before every read or write.
+
+## Persistent and immutable paths
+
+| Setting | Production default | Purpose |
+|---|---|---|
+| `PPSV_RELEASES_ROOT` | `/srv/ppsv-app/releases` | Root-owned immutable release directories |
+| `PPSV_CURRENT_LINK` | `/srv/shiny-server/ppsv-app` | Atomic symlink to the active application |
+| `PPSV_DATA_ROOT` | `/srv/ppsv-app-data` | Persistent database, locks, fallback, deployment records, renv cache |
+| `PPSV_DB_FILE` | `/srv/ppsv-app-data/ppsv_projects.db` | Fresh PPSV SQLite database |
+| `PPSV_POOL_ROOT` | `/fs/pool/pool-ppsvf-projects` | Primary files, outside the web root |
+| `PPSV_FALLBACK_ROOT` | `/srv/ppsv-app-data/uploads_pending_pool` | Persistent storage while pool is unavailable |
+
+The database and uploads must never live inside a release. The active symlink
+may be replaced or rolled back without touching mutable state.
+
+## Runtime configuration
+
+The tracked `scripts/ppsv-app.env.example` documents the interface. The real
+file is `/etc/ppsv-app/ppsv-app.env`, root-owned, not a symlink, and mode `0640`
+or stricter.
+
+| Variable | Meaning |
+|---|---|
+| `AUTH_MODE` | `ldap` in production; `test` only in an isolated test harness |
+| `PPSV_PUBLIC_URL` | Canonical `https://ppcf-vm.biochem.mpg.de/ppsv-app/` URL |
+| `PPSV_DB_FILE` | SQLite path below `PPSV_DATA_ROOT` |
+| `PPSV_POOL_ROOT` | Primary facility project pool |
+| `PPSV_POOL_EXPECTED_SOURCE` | Exact reviewed `findmnt` source for the facility pool; provisioning/deployment stop if it changes |
+| `PPSV_FALLBACK_ROOT` | Persistent fallback below `PPSV_DATA_ROOT` |
+| `PPSV_MAX_UPLOAD_MB` | Cumulative retained-file limit per request; default `75` |
+| `PPSV_TICKET_TO` | Ticket recipient; normally `ppsv-request@biochem.mpg.de` |
+| `PPSV_MAIL_FROM` | Provisioned service sender; normally `ppsv-service@biochem.mpg.de` |
+| `PPSV_TICKET_MODE` | `disabled`, `service_reply_to`, or `ldap_from` |
+| `PPSV_DIRECT_ACK` | Whether the system queues the PPSV acknowledgement on the safe fallback path |
+| `PPSV_SMTP_HOST` | SMTP relay hostname |
+| `PPSV_SMTP_PORT` | Relay port |
+| `PPSV_SMTP_SECURITY` | `none`, `ssl`, or `starttls` |
+| `PPSV_SMTP_USER` | Optional relay username |
+| `PPSV_SMTP_PASSWORD` | Relay secret when a username is configured |
+
+`PPSV_TICKET_MODE=disabled` preserves a visible suppressed outbox record; it
+does not pretend that ticket delivery succeeded.
+
+## Provisioning configuration
+
+| Variable | Required value or rule |
+|---|---|
+| `APP_RUN_USER` | `ppsvf-shiny-user` |
+| `APP_RUN_GROUP` | Private primary group `ppsvf-shiny`, distinct from `b_profa` |
+| `PPSV_POOL_GROUP` | `b_profa`, used only for project-pool access |
+| `TLS_CERT_FILE` | Absolute path to the leaf certificate |
+| `TLS_BUNDLE_FILE` | Absolute path to the leaf-first certificate chain |
+| `TLS_KEY_FILE` | Mandatory exact matching private key; never guessed |
+| `PPSV_BACKUP_DIR` | Mandatory external mounted backup destination |
+| `PPSV_BACKUP_EXPECTED_SOURCE` | Exact reviewed output of `findmnt -n -o SOURCE -T PPSV_BACKUP_DIR`; backup/verification stop if it changes |
+| `PPSV_BACKUP_RETENTION_DAYS` | Retention in days; default `30` |
+| `PPSV_SERVICE_IDENTITY_AUTHORIZED_ACK` | `1` only after written authorization for the service sender |
+| `PPSV_TICKET_E2E_TEST_ACK` | `1` only after the real requester/auto-reply test passes |
+| `PPSV_POOL_SNAPSHOT_POLICY_ACK` | `1` only after the external pool snapshot/restore policy is owned and tested |
+| `SHINY_SERVER_VERSION` | Exact reviewed Shiny Server package version |
+| `SHINY_SERVER_DEB_SHA256` | Independently reviewed checksum recorded for the exact installer |
+
+`PPSV_ALLOW_LOCAL_BACKUP=1`, `PPSV_ALLOW_LOCAL_POOL=1`, and
+`PPSV_ALLOW_OS_OVERRIDE=1` exist only to make an explicitly documented test
+host possible. They are not production values.
+
+## Database model and migrations
+
+The normalized schema contains users and LDAP profiles, the eight service
+modules, common requests, one-to-one protein or inquiry details, files, status
+history, the durable mail outbox, and delivery attempts. The current status is
+constrained to the seven PPSV statuses.
+
+The first production deployment creates `PPSV_DB_FILE` only when absent.
+Existing PPSV databases are migrated sequentially inside transactions. A
+legacy or unrecognized database is rejected. `PPSV_RESET_DB=1` is forbidden by
+the deployment script.
+
+## Dependencies and platform gate
+
+R packages are pinned in `ppsv-app/renv.lock`; deployment restores that lock
+before activation. Shiny Server must be installed from a local reviewed package
+using an independently reviewed checksum. The preflight validates Ubuntu
+26.04, `amd64`, the exact Shiny Server version, Java configuration, and actual
+initialization of `rJava` and `mailR` in the restored project.
+
+The repository gate is not evidence that Posit supports a future platform.
+Before installation, an operator must compare the chosen package and host with
+the current [Posit platform support
+matrix](https://docs.posit.co/platform-support.html) and [Shiny Server
+guidance](https://docs.posit.co/shiny-server/). If the combination is not
+supported, stop instead of proceeding partially.
+
+## File ownership and ACLs
+
+The application runs as `ppsvf-shiny-user` with private primary group
+`ppsvf-shiny`. The `b_profa` group grants people access to the project pool; it
+does not grant application roles.
+
+Pool and fallback request directories use mode `2770`; stored files use
+`0660`. The pool root receives access and default ACLs for the service user and
+`b_profa`. Do not use `0777`, `0666`, or make the application user a privileged
+login account.

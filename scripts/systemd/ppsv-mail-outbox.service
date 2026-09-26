@@ -1,0 +1,17 @@
+[Unit]
+Description=Process the PPSV durable mail outbox
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/srv/shiny-server/ppsv-app/process_mail_outbox.R
+
+[Service]
+Type=oneshot
+User=ppsvf-shiny-user
+Group=ppsvf-shiny
+EnvironmentFile=/etc/ppsv-app/ppsv-app.env
+Environment=PPSV_ENV_PRELOADED=1
+WorkingDirectory=/srv/shiny-server/ppsv-app
+ExecStart=/usr/local/libexec/ppsv-app/process_mail_outbox.sh
+UMask=0007
+NoNewPrivileges=true
+PrivateTmp=true

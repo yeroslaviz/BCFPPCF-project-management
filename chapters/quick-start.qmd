@@ -1,0 +1,194 @@
+---
+title: "Operator Quick Start"
+execute:
+  eval: false
+---
+
+This chapter is the shortest safe production sequence. It assumes a reviewed
+release checkout and administrator access to the target VM. It does not claim
+that VM-side readiness gates have passed.
+
+## Sync the reviewed repository to the VM
+
+The first operator action is to place the reviewed repository state on the
+server. This has not been done by the repository delivery itself.
+
+Use the institute-approved transfer method, for example a Git checkout of the
+reviewed commit or a controlled `rsync` from an administrator workstation. The
+server-side checkout is the path later passed to `scripts/deploy.sh --source`.
+
+Do not transfer local databases, generated Quarto output, `.Renviron` files,
+SMTP secrets, or ad-hoc test uploads. The PPSV deployment must initialize a
+fresh database on the VM when one is absent.
+
+## Before touching production
+
+This is an evidence checklist, not a command sequence. Before anyone describes
+the VM as production-ready, an operator must know who owns each item below and
+where the proof is recorded:
+
+1. The exact TLS private key matching the leaf certificate for
+   `ppcf-vm.biochem.mpg.de` is available. A CSR is not a private key.
+2. The SMTP administrators have authorized
+   `ppsv-service@biochem.mpg.de` for the configured relay account.
+3. A real ticket test has established which requester/auto-reply path works
+   without duplicate acknowledgements.
+4. `PPSV_BACKUP_DIR` is an external destination whose exact `findmnt` source is
+   recorded, and the storage team has documented the snapshot/restore policy
+   for `/fs/pool/pool-ppsvf-projects`.
+
+The system may be installed while a gate is pending, but it must not be called
+production-ready.
+
+## Prepare the runtime environment
+
+Copy the tracked template to a protected temporary operator path, fill every
+required value, and keep the real file out of Git:
+
+```bash
+sudo install -o root -g root -m 0600 \
+  scripts/ppsv-app.env.example /root/ppsv-app.env
+sudoedit /root/ppsv-app.env
+```
+
+Production invariants are:
+
+```ini
+AUTH_MODE=ldap
+PPSV_PUBLIC_URL=https://ppcf-vm.biochem.mpg.de/ppsv-app/
+APP_RUN_USER=ppsvf-shiny-user
+APP_RUN_GROUP=ppsvf-shiny
+PPSV_POOL_GROUP=b_profa
+PPSV_DB_FILE=/srv/ppsv-app-data/ppsv_projects.db
+PPSV_POOL_ROOT=/fs/pool/pool-ppsvf-projects
+PPSV_FALLBACK_ROOT=/srv/ppsv-app-data/uploads_pending_pool
+PPSV_POOL_EXPECTED_SOURCE=REQUIRED_FACILITY_POOL_MOUNT_SOURCE
+PPSV_ALLOW_LOCAL_POOL=0
+```
+
+Never put SMTP credentials or another secret in the repository or in an
+application-local `.Renviron`. Provisioning installs the environment as
+`/etc/ppsv-app/ppsv-app.env`, owned by root and mode `0640` or stricter.
+
+Record both external mount sources exactly:
+
+```bash
+findmnt -n -o SOURCE -T /fs/pool/pool-ppsvf-projects
+findmnt -n -o SOURCE -T /the/configured/backup/path
+```
+
+Set those results as `PPSV_POOL_EXPECTED_SOURCE` and
+`PPSV_BACKUP_EXPECTED_SOURCE`. Leave
+`PPSV_SERVICE_IDENTITY_AUTHORIZED_ACK`, `PPSV_TICKET_E2E_TEST_ACK`, and
+`PPSV_POOL_SNAPSHOT_POLICY_ACK` at `0` until the corresponding gate has real
+evidence. Production verification deliberately fails while any remains `0`.
+
+## Install and preflight Shiny Server
+
+Review the current [Posit platform support
+matrix](https://docs.posit.co/platform-support.html) and [Shiny Server
+documentation](https://docs.posit.co/shiny-server/). The repository gate
+expects Ubuntu 26.04 on `amd64`; it stops on an unsupported OS or architecture.
+Do not force a partial installation on a mismatched host.
+
+Obtain the chosen Shiny Server `.deb` through the approved administrator
+channel, independently review its SHA-256, and install it explicitly:
+
+```bash
+sudo scripts/install_shiny_server.sh \
+  --env /root/ppsv-app.env \
+  --deb /absolute/path/shiny-server-1.5.23.1030-amd64.deb
+```
+
+The sample environment pins the reviewed official checksum. The installer
+validates package name, exact version, Ubuntu release, package/host
+architecture, and checksum. It never downloads a package.
+
+## Provision idempotently
+
+Mount the project pool and external backup destination first, then run:
+
+```bash
+sudo scripts/provision.sh --env /root/ppsv-app.env --install-system
+```
+
+Provisioning validates TLS and both external mount identities before copying or
+changing configuration, creates the private runtime account and persistent
+paths, applies the pool ACL, installs Apache/Shiny templates and systemd units,
+and enables the mail and backup timers. Re-running the command with the same
+reviewed inputs is supported.
+
+## Deploy an immutable release
+
+The repository must contain `ppsv-app/renv.lock` and should be clean and
+traceable to a commit:
+
+```bash
+sudo scripts/deploy.sh --source "$PWD"
+```
+
+The deploy command:
+
+1. stages code in a new release directory;
+2. restores the locked R environment;
+3. verifies `rJava` and `mailR`;
+4. creates a verified pre-deployment database/fallback backup when a database
+   already exists;
+5. stops workers, creates a fresh PPSV database only when absent, and applies
+   later migrations transactionally;
+6. atomically points `/srv/shiny-server/ppsv-app` at the release; and
+7. starts services and runs local deployment checks.
+
+It never imports or migrates `ms_projects.db`.
+
+## Verify before handoff
+
+Run the automated verifier with normal certificate validation:
+
+```bash
+sudo scripts/verify_deployment.sh
+```
+
+For an authenticated route test, create a temporary mode-`0600` curl netrc
+containing a dedicated LDAP test account, then run:
+
+```bash
+sudo scripts/verify_deployment.sh \
+  --netrc /root/ppsv-test.netrc \
+  --role-user ORDINARY_LDAP_USERNAME
+sudo shred -u /root/ppsv-test.netrc
+```
+
+Do not use `curl -k`. Complete the browser, WebSocket, role, ticket, pool, and
+restore checks in [Acceptance and handoff](acceptance.qmd) before signing off.
+
+## Routine operator commands
+
+```bash
+# Process mail immediately in addition to the one-minute timer.
+sudo systemctl start ppsv-mail-outbox.service
+
+# Reconcile checksum-verified fallback uploads after the pool returns.
+sudo systemctl start ppsv-pool-reconcile.service
+
+# Create the nightly-style verified backup immediately.
+sudo systemctl start ppsv-backup.service
+
+# Inspect recent unit logs.
+sudo journalctl -u shiny-server.service -u ppsv-mail-outbox.service \
+  -u ppsv-backup.service --since today
+```
+
+## Stop conditions
+
+Stop and investigate instead of weakening the system if any of these occur:
+
+- TLS key, leaf certificate, SAN, expiry, or chain validation fails;
+- the VM is not the reviewed OS/architecture combination;
+- the project pool or external backup destination is not mounted;
+- the runtime account cannot create `2770` directories and `0660` files;
+- Apache is not the only public route to Shiny;
+- LDAP identity can be supplied through a query string, cookie, or client
+  header;
+- the dependency lock cannot be restored cleanly; or
+- a backup cannot be verified or restored on a disposable test target.

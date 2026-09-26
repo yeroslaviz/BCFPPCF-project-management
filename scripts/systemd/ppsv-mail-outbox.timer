@@ -1,0 +1,13 @@
+[Unit]
+Description=Run the PPSV mail outbox worker every minute
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=10s
+Persistent=true
+Unit=ppsv-mail-outbox.service
+
+[Install]
+WantedBy=timers.target
+

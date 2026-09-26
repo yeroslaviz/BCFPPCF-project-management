@@ -1,0 +1,218 @@
+---
+title: "Deployment and Rollback"
+execute:
+  eval: false
+---
+
+Production provisioning is an administrator handoff. Repository delivery does
+not authorize the agent or developer to provision the VM, request certificates,
+create mail identities, or declare the external gates complete.
+
+## Host and package preflight
+
+The checked production target is Ubuntu 26.04 on `amd64`. Before installing,
+compare the selected package and OS against the current [Posit platform support
+matrix](https://docs.posit.co/platform-support.html) and [Shiny Server
+guidance](https://docs.posit.co/shiny-server/). A script override is acceptable
+only for a named test host with a written exception; it is not a production
+approval.
+
+The repository review on 2026-09-26 found Ubuntu 26.04 LTS listed for Posit
+server products, while the current Shiny Server guidance still limits Shiny
+Server itself to `x86-64`. The pinned package and preflight therefore require
+`amd64`. Recheck both sources at installation time rather than treating this
+dated review as permanent approval.
+
+The Shiny Server installer consumes a local `.deb` and a separately reviewed
+SHA-256. It validates the package name, exact version, package architecture,
+host architecture, and checksum before calling the package manager:
+
+```bash
+sudo scripts/install_shiny_server.sh \
+  --env /root/ppsv-app.env \
+  --deb /absolute/path/shiny-server-1.5.23.1030-amd64.deb
+```
+
+No repository script downloads an installer. R dependencies are pinned in
+`ppsv-app/renv.lock`; its reviewed `renv.lock.sha256` must verify before a
+restore or deployment proceeds.
+
+## TLS inputs and validation
+
+The operator must supply three distinct, absolute paths:
+
+- `TLS_CERT_FILE`: leaf certificate for `ppcf-vm.biochem.mpg.de`;
+- `TLS_BUNDLE_FILE`: leaf-first full chain; and
+- `TLS_KEY_FILE`: the exact matching private key.
+
+`TLS_KEY_FILE` is intentionally unresolved in the sample environment. Never
+guess it, reuse a CSR path, or treat a certificate request as a key.
+
+Before copying anything into `/etc/ssl`, provisioning validates:
+
+1. all inputs are readable regular files;
+2. the leaf is a PEM certificate;
+3. the hostname is covered by the certificate SAN;
+4. the leaf has at least 30 days remaining;
+5. the private key is valid and usable unattended;
+6. certificate and private-key public keys match;
+7. the bundle starts with the same leaf; and
+8. the presented intermediate chain verifies the leaf.
+
+Only after those checks pass is the full chain installed as
+`/etc/ssl/certs/ppsv-app-fullchain.pem` and the key as
+`/etc/ssl/private/ppsv-app.key` with mode `0600`. Apache configuration must pass
+`apache2ctl configtest` before reload. Acceptance uses normal CA validation;
+`curl -k` is forbidden because it would hide a broken certificate or chain.
+
+For renewal, obtain the new matching key/certificate/chain through the approved
+PKI workflow, point a protected operator environment at those inputs, rerun
+provisioning, and repeat the full TLS acceptance check. Do not overwrite the
+active key manually.
+
+## Idempotent provisioning
+
+Create the operator environment from the tracked sample and fill all required
+values. A temporary root-owned, mode-`0600` source is safe before the private
+runtime group exists:
+
+```bash
+sudo install -o root -g root -m 0600 \
+  scripts/ppsv-app.env.example /root/ppsv-app.env
+sudoedit /root/ppsv-app.env
+sudo scripts/provision.sh --env /root/ppsv-app.env --install-system
+```
+
+Provisioning installs the final environment at
+`/etc/ppsv-app/ppsv-app.env`, root-owned with group `ppsvf-shiny` and mode
+`0640`. It creates or validates:
+
+- runtime user `ppsvf-shiny-user` and private primary group `ppsvf-shiny`;
+- immutable-release, persistent-data, fallback, lock, deployment-record, and
+  renv-cache directories;
+- project-pool setgid/default ACL access for the service account and
+  `b_profa`;
+- the required external backup directories;
+- loopback-only Shiny Server configuration;
+- HTTP redirect and HTTPS LDAP/WebSocket Apache sites; and
+- systemd units for the mail worker, backup, and pool reconciliation.
+
+It refuses production values other than `AUTH_MODE=ldap`, the canonical public
+URL, the private runtime identity, and `b_profa` as the pool ACL group.
+
+## Apache and Shiny behavior
+
+The installed Shiny configuration uses:
+
+```text
+run_as ppsvf-shiny-user;
+listen 3838 127.0.0.1;
+```
+
+The port-80 site redirects every request to HTTPS. The HTTPS site redirects `/`
+to `/ppsv-app/`, authenticates that location with LDAP, strips client identity
+headers, injects the server-authenticated profile, and proxies ordinary HTTP
+and WebSocket upgrades to loopback.
+
+Do not expose 3838, place a second unauthenticated proxy in front of it, or
+enable a test/local login on the production host.
+
+## First deployment
+
+Use a clean Git worktree at the reviewed revision. Production deployment stops
+on tracked or untracked changes unless an explicit test-only dirty-release
+override is set.
+
+```bash
+sudo scripts/deploy.sh --source "$PWD"
+```
+
+The release identifier defaults to a UTC timestamp plus commit. An operator may
+supply a safe explicit ID:
+
+```bash
+sudo scripts/deploy.sh --source "$PWD" --release 20260925-approved
+```
+
+Deployment performs these stages:
+
+1. copy only `ppsv-app/` into a new staging directory, excluding secrets,
+   databases, fallback uploads, and stale package libraries;
+2. bootstrap the single pinned `renv` package through its checked autoloader
+   when absent, then restore exactly `ppsv-app/renv.lock` into the staged
+   application;
+3. run requirements and Java mail-runtime checks;
+4. create and verify a pre-deployment SQLite/fallback backup when persistent
+   state already exists;
+5. stop the mail worker and Shiny;
+6. initialize a fresh PPSV database only if absent, or apply PPSV migrations
+   transactionally;
+7. write revision and SHA-256 manifest metadata;
+8. make the staged release root-owned and immutable to the runtime user;
+9. atomically change `/srv/shiny-server/ppsv-app`; and
+10. start Shiny, require a successful loopback health check, restart timers,
+    and run local verification.
+
+`PPSV_RESET_DB=1` is rejected. The copied MS database is neither read nor
+migrated.
+
+## Verification
+
+Run the complete local/public verifier after deployment. Full acceptance
+requires a dedicated LDAP test netrc and an ordinary active LDAP username;
+technician/admin checks default to `grzejszc` and `yeroslaviz` unless explicit
+alternatives are supplied:
+
+```bash
+sudo scripts/verify_deployment.sh \
+  --netrc /root/ppsv-test.netrc \
+  --role-user ORDINARY_LDAP_USERNAME
+```
+
+It checks release placement and protected parent modes, absence of mutable
+state in the release, the reviewed lock checksum, service
+status, loopback binding, worker UID, database integrity and mode, storage
+permissions and the recorded facility-pool mount source, Apache
+modules/configuration/header stripping, timers, trusted TLS redirects, and
+unauthenticated identity spoof rejection. Supply a temporary
+mode-`0600` netrc to include an authenticated LDAP route test:
+
+```bash
+sudo scripts/verify_deployment.sh \
+  --netrc /root/ppsv-test.netrc \
+  --role-user ORDINARY_LDAP_USERNAME \
+  --role-technician grzejszc \
+  --role-admin yeroslaviz
+```
+
+The verifier also refuses readiness while the service-sender authorization,
+ticket end-to-end test, or pool-snapshot-policy acknowledgement remains `0`,
+and verifies that the external backup mount has the recorded source. It
+supplements rather than replaces the manual browser, ticket, role, and restore
+tests in [Acceptance and handoff](acceptance.qmd).
+
+## Code rollback
+
+List immutable releases and select an existing reviewed target:
+
+```bash
+sudo find /srv/ppsv-app/releases -mindepth 1 -maxdepth 1 -type d -printf '%f\n'
+sudo scripts/rollback.sh --release RELEASE_ID
+```
+
+Rollback atomically changes the code symlink, restarts Shiny, and requires a
+successful loopback health check. If that check fails, it restores the previous
+code link.
+
+Code rollback does **not** reverse database migrations or remove requests
+created since the release. The deployment health-failure path also keeps any
+already committed migration. Restore a database only after assessing schema
+compatibility and explicitly accepting loss of newer state.
+
+## Configuration changes
+
+Edit `/etc/ppsv-app/ppsv-app.env` with `sudoedit`, preserve root ownership and
+mode `0640` or stricter, and run the relevant validation before restarting
+services. For TLS, identity, path, user, or Apache changes, rerun provisioning
+rather than applying ad hoc edits. For mail-mode changes, complete the decision
+test in [Mail and storage operations](mail-storage.qmd) and retain its evidence.

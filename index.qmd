@@ -1,0 +1,82 @@
+---
+title: "PPSV Project Management System"
+---
+
+This protocol documents the management system for the Protein Production
+and Structural Validation Facility (PPSV) at the Max Planck Institute of
+Biochemistry.
+
+The production application exists at
+`https://ppcf-vm.biochem.mpg.de/ppsv-app/`. For facility questions, contact
+[ppsv-request@biochem.mpg.de](mailto:ppsv-request@biochem.mpg.de) or
++49 89 8578-3629. for help with the system contact [omicsdesk@biochem.mpg.de](mailto:omicsdesk@biochem.mpg.de)
+
+## Scope
+
+The system supports eight PPSV service modules plus a separate general-inquiry
+path. Every saved project receives a unique Id, such as `PPSV000001`, `PPSV000002`, and so on. 
+Its lifecycle uses these seven statuses:
+
+1. `Submitted`
+2. `Under review`
+3. `Accepted`
+4. `In progress`
+5. `Awaiting requester input`
+6. `Completed`
+7. `Closed`
+
+The application records the current status, owner, assignee, contact snapshot,
+status history, file manifest, archive state, ticket state, and every mail
+attempt. A PPSV-branded PDF summarizes the request without any cost or invoice
+data.
+
+General inquiries are stored as `request_kind = inquiry`; they are not a ninth
+service-module database row. Service requests use the fields in
+`PPSV_Submission_form.xlsx` exactly as described in the
+[field dictionary](chapters/field-dictionary.qmd).
+
+## Trust model
+
+Apache authenticates the user with LDAP and injects server-controlled profile
+headers after removing client-supplied versions. Shiny Server listens only on
+`127.0.0.1:3838`. Roles are derived case-insensitively from a version-controlled
+allowlist, and every repository or server action repeats its authorization
+check. UI visibility is never treated as a security boundary.
+
+Files are not served from the application directory. They are stored under the
+facility pool or a persistent fallback, use generated stored names, and are
+verified by checksum before download or reconciliation.
+
+## Deliberate exclusions
+
+PPSV v1 does not contain:
+
+- legacy MS project data or a migration from `ms_projects.db`;
+- MS-specific forms, sample tables, templates, or data-release workflows;
+- price lists, costs, cost estimates, billing calculations, or invoices;
+- inbound-mail forwarding or a mailbox relay;
+- production local-password login or identity in a query string/cookie; or
+- permanent deletion of requests or files.
+
+## Reading guide
+
+- [Operator quick start](chapters/quick-start.qmd) — shortest safe path from a
+  reviewed release to a running system.
+- [Architecture and configuration](chapters/architecture-configuration.qmd) —
+  paths, environment variables, dependencies, and trust boundaries.
+- [Field dictionary](chapters/field-dictionary.qmd) — service modules and the
+  complete form contract.
+- [Identity and authorization](chapters/identity-authorization.qmd) — LDAP,
+  roles, activation, and permissions.
+- [Mail and storage](chapters/mail-storage.qmd) — ticket decision test, outbox,
+  file fallback, and reconciliation.
+- [Deployment and rollback](chapters/deployment.qmd) — provisioning, TLS, atomic
+  releases, and code rollback.
+- [Backup and restore](chapters/backup-restore.qmd) — nightly backups, restore
+  drills, and the pool-snapshot dependency.
+- [Acceptance and handoff](chapters/acceptance.qmd) — evidence required before
+  production readiness can be declared.
+- [Troubleshooting](chapters/troubleshooting.qmd) — diagnosis by symptom without
+  weakening authentication or permissions.
+- [Development and verification](chapters/development-verification.qmd) — local
+  setup, tests, migrations, and release checks.
