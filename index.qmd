@@ -7,7 +7,7 @@ and Structural Validation Facility (PPSV) at the Max Planck Institute of
 Biochemistry.
 
 The production application exists at
-`https://ppcf-vm.biochem.mpg.de/ppsv-app/`. For facility questions, contact
+`https://ppcf-vm.biochem.mpg.de/ppsvf-app/`. For facility questions, contact
 [ppsv-request@biochem.mpg.de](mailto:ppsv-request@biochem.mpg.de) or
 +49 89 8578-3629. for help with the system contact [omicsdesk@biochem.mpg.de](mailto:omicsdesk@biochem.mpg.de)
 

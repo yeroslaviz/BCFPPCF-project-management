@@ -13,9 +13,25 @@ that VM-side readiness gates have passed.
 The first operator action is to place the reviewed repository state on the
 server. This has not been done by the repository delivery itself.
 
-Use the institute-approved transfer method, for example a Git checkout of the
-reviewed commit or a controlled `rsync` from an administrator workstation. The
-server-side checkout is the path later passed to `scripts/deploy.sh --source`.
+The intended VM workflow is the same source-checkout pattern used for the
+BCFMS system: keep the Git repository in the operator home area and update it
+there before deploying.
+
+```bash
+cd /home/yeroslaviz/BCFPPCF-project-management
+git pull origin main
+git status --short
+```
+
+`git status --short` should be empty for a production release. The checkout
+path is the source path later passed to `scripts/deploy.sh --source`.
+
+The PPSV deployment step does not make that home checkout the live Shiny app.
+It copies `ppsvf-app/` from the checkout into a new immutable release under
+`/srv/ppsvf-app/releases/`, excludes mutable local state such as databases and
+`.Renviron`, fixes ownership and permissions, restarts Shiny, and atomically
+points `/srv/shiny-server/ppsvf-app` at the new release. This keeps rollback
+available while preserving the familiar `git pull origin main` operator flow.
 
 Do not transfer local databases, generated Quarto output, `.Renviron` files,
 SMTP secrets, or ad-hoc test uploads. The PPSV deployment must initialize a
@@ -47,28 +63,28 @@ required value, and keep the real file out of Git:
 
 ```bash
 sudo install -o root -g root -m 0600 \
-  scripts/ppsv-app.env.example /root/ppsv-app.env
-sudoedit /root/ppsv-app.env
+  scripts/ppsvf-app.env.example /root/ppsvf-app.env
+sudoedit /root/ppsvf-app.env
 ```
 
 Production invariants are:
 
 ```ini
 AUTH_MODE=ldap
-PPSV_PUBLIC_URL=https://ppcf-vm.biochem.mpg.de/ppsv-app/
+PPSV_PUBLIC_URL=https://ppcf-vm.biochem.mpg.de/ppsvf-app/
 APP_RUN_USER=ppsvf-shiny-user
 APP_RUN_GROUP=ppsvf-shiny
 PPSV_POOL_GROUP=b_profa
-PPSV_DB_FILE=/srv/ppsv-app-data/ppsv_projects.db
+PPSV_DB_FILE=/srv/ppsvf-app-data/ppsv_projects.db
 PPSV_POOL_ROOT=/fs/pool/pool-ppsvf-projects
-PPSV_FALLBACK_ROOT=/srv/ppsv-app-data/uploads_pending_pool
+PPSV_FALLBACK_ROOT=/srv/ppsvf-app-data/uploads_pending_pool
 PPSV_POOL_EXPECTED_SOURCE=REQUIRED_FACILITY_POOL_MOUNT_SOURCE
 PPSV_ALLOW_LOCAL_POOL=0
 ```
 
 Never put SMTP credentials or another secret in the repository or in an
 application-local `.Renviron`. Provisioning installs the environment as
-`/etc/ppsv-app/ppsv-app.env`, owned by root and mode `0640` or stricter.
+`/etc/ppsvf-app/ppsvf-app.env`, owned by root and mode `0640` or stricter.
 
 Record both external mount sources exactly:
 
@@ -96,7 +112,7 @@ channel, independently review its SHA-256, and install it explicitly:
 
 ```bash
 sudo scripts/install_shiny_server.sh \
-  --env /root/ppsv-app.env \
+  --env /root/ppsvf-app.env \
   --deb /absolute/path/shiny-server-1.5.23.1030-amd64.deb
 ```
 
@@ -109,7 +125,7 @@ architecture, and checksum. It never downloads a package.
 Mount the project pool and external backup destination first, then run:
 
 ```bash
-sudo scripts/provision.sh --env /root/ppsv-app.env --install-system
+sudo scripts/provision.sh --env /root/ppsvf-app.env --install-system
 ```
 
 Provisioning validates TLS and both external mount identities before copying or
@@ -120,10 +136,11 @@ reviewed inputs is supported.
 
 ## Deploy an immutable release
 
-The repository must contain `ppsv-app/renv.lock` and should be clean and
+The repository must contain `ppsvf-app/renv.lock` and should be clean and
 traceable to a commit:
 
 ```bash
+cd /home/yeroslaviz/BCFPPCF-project-management
 sudo scripts/deploy.sh --source "$PWD"
 ```
 
@@ -136,7 +153,7 @@ The deploy command:
    already exists;
 5. stops workers, creates a fresh PPSV database only when absent, and applies
    later migrations transactionally;
-6. atomically points `/srv/shiny-server/ppsv-app` at the release; and
+6. atomically points `/srv/shiny-server/ppsvf-app` at the release; and
 7. starts services and runs local deployment checks.
 
 It never imports or migrates `ms_projects.db`.

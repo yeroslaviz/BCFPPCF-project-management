@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 source "${SCRIPT_DIR}/lib.sh"
 
-ENV_FILE="${PPSV_ENV_FILE:-/etc/ppsv-app/ppsv-app.env}"
+ENV_FILE="${PPSV_ENV_FILE:-/etc/ppsvf-app/ppsvf-app.env}"
 RELEASE_ID=""
 
 usage() {
@@ -42,7 +42,7 @@ validate_runtime_paths
 acquire_lock "/run/lock/ppsv-deploy.lock" 8
 acquire_lock "${PPSV_DATA_ROOT}/locks/maintenance.lock" 9
 
-target="${PPSV_RELEASES_ROOT}/${RELEASE_ID}/ppsv-app"
+target="${PPSV_RELEASES_ROOT}/${RELEASE_ID}/ppsvf-app"
 [[ -f "${target}/app.R" && -f "${target}/renv.lock" ]] || die "Release is incomplete or absent: ${target}"
 release_root="$(dirname "${target}")"
 [[ -f "${release_root}/MANIFEST.sha256" ]] || die "Release manifest is missing: ${release_root}/MANIFEST.sha256"
@@ -99,7 +99,7 @@ systemctl start shiny-server.service
 
 healthy=0
 for _ in {1..30}; do
-  status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 http://127.0.0.1:3838/ppsv-app/ || true)"
+  status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 http://127.0.0.1:3838/ppsvf-app/ || true)"
   if [[ "${status}" =~ ^(2|3)[0-9][0-9]$ ]]; then healthy=1; break; fi
   sleep 1
 done

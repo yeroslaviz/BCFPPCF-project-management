@@ -6,8 +6,8 @@ find_repo_file <- function(...) {
   normalizePath(match)
 }
 
-source(find_repo_file("ppsv-app", "R", "mail.R"), local = TRUE)
-source(find_repo_file("ppsv-app", "R", "pdf.R"), local = TRUE)
+source(find_repo_file("ppsvf-app", "R", "mail.R"), local = TRUE)
+source(find_repo_file("ppsvf-app", "R", "pdf.R"), local = TRUE)
 
 testthat::test_that("mail configuration fails closed", {
   values <- c(
@@ -29,7 +29,7 @@ testthat::test_that("LDAP From mode has a safe service fallback and one acknowle
     direct_ack = TRUE,
     ticket_to = "ppsv-request@biochem.mpg.de",
     service_from = "ppsv-service@biochem.mpg.de",
-    public_url = "https://ppcf-vm.biochem.mpg.de/ppsv-app",
+    public_url = "https://ppcf-vm.biochem.mpg.de/ppsvf-app",
     smtp = list(host.name = "smtp.example.org", port = 587L, ssl = FALSE, tls = TRUE, user.name = "", passwd = "")
   )
   request <- list(
@@ -88,7 +88,7 @@ testthat::test_that("unverified form email is never used in mail headers", {
     direct_ack = TRUE,
     ticket_to = "ppsv-request@biochem.mpg.de",
     service_from = "ppsv-service@biochem.mpg.de",
-    public_url = "https://ppcf-vm.biochem.mpg.de/ppsv-app",
+    public_url = "https://ppcf-vm.biochem.mpg.de/ppsvf-app",
     smtp = list(host.name = "smtp.example.org", port = 587L, ssl = FALSE, tls = TRUE, user.name = "", passwd = "")
   )
   request <- list(

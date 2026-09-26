@@ -272,7 +272,7 @@ testthat::test_that("the PPSV app contains no legacy database or cost schema art
   testthat::expect_false(any(file.exists(file.path(PPSV_TEST_REPO, removed_legacy_artifacts))))
 
   app_files <- list.files(
-    file.path(PPSV_TEST_REPO, "ppsv-app"),
+    file.path(PPSV_TEST_REPO, "ppsvf-app"),
     recursive = TRUE,
     all.files = TRUE,
     full.names = FALSE,
@@ -317,7 +317,7 @@ testthat::test_that("the PPSV app contains no legacy database or cost schema art
     )
   }
   production_files <- c(
-    list.files(file.path(PPSV_TEST_REPO, "ppsv-app"), recursive = TRUE, full.names = TRUE),
+    list.files(file.path(PPSV_TEST_REPO, "ppsvf-app"), recursive = TRUE, full.names = TRUE),
     list.files(file.path(PPSV_TEST_REPO, "scripts"), recursive = TRUE, full.names = TRUE)
   )
   production_files <- production_files[

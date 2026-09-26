@@ -1,12 +1,12 @@
 ppsv_test_repo_root <- function() {
   candidates <- c(".", "..", "../..")
-  matches <- candidates[file.exists(file.path(candidates, "ppsv-app", "R", "load_backend.R"))]
+  matches <- candidates[file.exists(file.path(candidates, "ppsvf-app", "R", "load_backend.R"))]
   if (!length(matches)) stop("Could not locate the PPSV repository root.")
   normalizePath(matches[[1L]], winslash = "/")
 }
 
 PPSV_TEST_REPO <- ppsv_test_repo_root()
-source(file.path(PPSV_TEST_REPO, "ppsv-app", "R", "load_backend.R"), local = FALSE)
+source(file.path(PPSV_TEST_REPO, "ppsvf-app", "R", "load_backend.R"), local = FALSE)
 
 ppsv_test_context <- function(ticket_mode = "disabled", direct_ack = FALSE,
                               max_upload_mb = 75, pool = TRUE) {
@@ -15,13 +15,13 @@ ppsv_test_context <- function(ticket_mode = "disabled", direct_ack = FALSE,
   pool_root <- file.path(root, "pool")
   if (pool) dir.create(pool_root)
   config <- ppsv_config(list(
-    app_dir = file.path(PPSV_TEST_REPO, "ppsv-app"),
+    app_dir = file.path(PPSV_TEST_REPO, "ppsvf-app"),
     db_file = file.path(root, "ppsv.sqlite"),
     pool_root = pool_root,
     pool_expected_source = "",
     allow_local_pool = TRUE,
     fallback_root = file.path(root, "fallback"),
-    public_url = "https://ppcf-vm.biochem.mpg.de/ppsv-app",
+    public_url = "https://ppcf-vm.biochem.mpg.de/ppsvf-app",
     max_upload_mb = max_upload_mb,
     ticket_mode = ticket_mode,
     direct_ack = direct_ack,
@@ -33,7 +33,7 @@ ppsv_test_context <- function(ticket_mode = "disabled", direct_ack = FALSE,
     smtp_user = "",
     smtp_password = "",
     auth_mode = "test",
-    logo_path = file.path(PPSV_TEST_REPO, "ppsv-app", "www", "ppsv-logo.png")
+    logo_path = file.path(PPSV_TEST_REPO, "ppsvf-app", "www", "ppsv-logo.png")
   ))
   ctx <- ppsv_initialize(config)
   attr(ctx, "test_root") <- root

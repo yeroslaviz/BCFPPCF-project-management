@@ -29,12 +29,12 @@ host architecture, and checksum before calling the package manager:
 
 ```bash
 sudo scripts/install_shiny_server.sh \
-  --env /root/ppsv-app.env \
+  --env /root/ppsvf-app.env \
   --deb /absolute/path/shiny-server-1.5.23.1030-amd64.deb
 ```
 
 No repository script downloads an installer. R dependencies are pinned in
-`ppsv-app/renv.lock`; its reviewed `renv.lock.sha256` must verify before a
+`ppsvf-app/renv.lock`; its reviewed `renv.lock.sha256` must verify before a
 restore or deployment proceeds.
 
 ## TLS inputs and validation
@@ -60,8 +60,8 @@ Before copying anything into `/etc/ssl`, provisioning validates:
 8. the presented intermediate chain verifies the leaf.
 
 Only after those checks pass is the full chain installed as
-`/etc/ssl/certs/ppsv-app-fullchain.pem` and the key as
-`/etc/ssl/private/ppsv-app.key` with mode `0600`. Apache configuration must pass
+`/etc/ssl/certs/ppsvf-app-fullchain.pem` and the key as
+`/etc/ssl/private/ppsvf-app.key` with mode `0600`. Apache configuration must pass
 `apache2ctl configtest` before reload. Acceptance uses normal CA validation;
 `curl -k` is forbidden because it would hide a broken certificate or chain.
 
@@ -78,13 +78,13 @@ runtime group exists:
 
 ```bash
 sudo install -o root -g root -m 0600 \
-  scripts/ppsv-app.env.example /root/ppsv-app.env
-sudoedit /root/ppsv-app.env
-sudo scripts/provision.sh --env /root/ppsv-app.env --install-system
+  scripts/ppsvf-app.env.example /root/ppsvf-app.env
+sudoedit /root/ppsvf-app.env
+sudo scripts/provision.sh --env /root/ppsvf-app.env --install-system
 ```
 
 Provisioning installs the final environment at
-`/etc/ppsv-app/ppsv-app.env`, root-owned with group `ppsvf-shiny` and mode
+`/etc/ppsvf-app/ppsvf-app.env`, root-owned with group `ppsvf-shiny` and mode
 `0640`. It creates or validates:
 
 - runtime user `ppsvf-shiny-user` and private primary group `ppsvf-shiny`;
@@ -110,7 +110,7 @@ listen 3838 127.0.0.1;
 ```
 
 The port-80 site redirects every request to HTTPS. The HTTPS site redirects `/`
-to `/ppsv-app/`, authenticates that location with LDAP, strips client identity
+to `/ppsvf-app/`, authenticates that location with LDAP, strips client identity
 headers, injects the server-authenticated profile, and proxies ordinary HTTP
 and WebSocket upgrades to loopback.
 
@@ -136,10 +136,10 @@ sudo scripts/deploy.sh --source "$PWD" --release 20260925-approved
 
 Deployment performs these stages:
 
-1. copy only `ppsv-app/` into a new staging directory, excluding secrets,
+1. copy only `ppsvf-app/` into a new staging directory, excluding secrets,
    databases, fallback uploads, and stale package libraries;
 2. bootstrap the single pinned `renv` package through its checked autoloader
-   when absent, then restore exactly `ppsv-app/renv.lock` into the staged
+   when absent, then restore exactly `ppsvf-app/renv.lock` into the staged
    application;
 3. run requirements and Java mail-runtime checks;
 4. create and verify a pre-deployment SQLite/fallback backup when persistent
@@ -149,7 +149,7 @@ Deployment performs these stages:
    transactionally;
 7. write revision and SHA-256 manifest metadata;
 8. make the staged release root-owned and immutable to the runtime user;
-9. atomically change `/srv/shiny-server/ppsv-app`; and
+9. atomically change `/srv/shiny-server/ppsvf-app`; and
 10. start Shiny, require a successful loopback health check, restart timers,
     and run local verification.
 
@@ -196,7 +196,7 @@ tests in [Acceptance and handoff](acceptance.qmd).
 List immutable releases and select an existing reviewed target:
 
 ```bash
-sudo find /srv/ppsv-app/releases -mindepth 1 -maxdepth 1 -type d -printf '%f\n'
+sudo find /srv/ppsvf-app/releases -mindepth 1 -maxdepth 1 -type d -printf '%f\n'
 sudo scripts/rollback.sh --release RELEASE_ID
 ```
 
@@ -211,7 +211,7 @@ compatibility and explicitly accepting loss of newer state.
 
 ## Configuration changes
 
-Edit `/etc/ppsv-app/ppsv-app.env` with `sudoedit`, preserve root ownership and
+Edit `/etc/ppsvf-app/ppsvf-app.env` with `sudoedit`, preserve root ownership and
 mode `0640` or stricter, and run the relevant validation before restarting
 services. For TLS, identity, path, user, or Apache changes, rerun provisioning
 rather than applying ad hoc edits. For mail-mode changes, complete the decision

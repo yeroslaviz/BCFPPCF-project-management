@@ -160,7 +160,7 @@ and files `0660`; setgid and default ACLs preserve access for
 When the pool is unavailable or unsafe, the application stores new files under:
 
 ```text
-/srv/ppsv-app-data/uploads_pending_pool/PPSV000001/{inputs,results}
+/srv/ppsvf-app-data/uploads_pending_pool/PPSV000001/{inputs,results}
 ```
 
 The request is visibly flagged with fallback storage state. The fallback is

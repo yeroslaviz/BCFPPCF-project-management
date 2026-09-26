@@ -88,7 +88,7 @@ testthat::test_that("Shiny test mode renders conditional service and inquiry for
     PPSV_FALLBACK_ROOT = file.path(root, "fallback"),
     PPSV_TICKET_MODE = "disabled"
   )
-  old_wd <- setwd(file.path(PPSV_TEST_REPO, "ppsv-app"))
+  old_wd <- setwd(file.path(PPSV_TEST_REPO, "ppsvf-app"))
   on.exit(setwd(old_wd), add = TRUE)
   app_env <- new.env(parent = globalenv())
   sys.source("app.R", app_env)

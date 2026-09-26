@@ -40,7 +40,7 @@ require_value() {
 }
 
 load_runtime_env() {
-  local requested_file="${1:-${PPSV_ENV_FILE:-/etc/ppsv-app/ppsv-app.env}}"
+  local requested_file="${1:-${PPSV_ENV_FILE:-/etc/ppsvf-app/ppsvf-app.env}}"
 
   [[ -f "${requested_file}" && ! -L "${requested_file}" ]] || die "Runtime environment file must be a regular, non-symlink file: ${requested_file}"
   local env_owner env_mode env_mode_value
@@ -67,13 +67,13 @@ load_runtime_env() {
   export APP_RUN_USER="${APP_RUN_USER:-ppsvf-shiny-user}"
   export APP_RUN_GROUP="${APP_RUN_GROUP:-ppsvf-shiny}"
   export PPSV_POOL_GROUP="${PPSV_POOL_GROUP:-b_profa}"
-  export PPSV_RELEASES_ROOT="${PPSV_RELEASES_ROOT:-/srv/ppsv-app/releases}"
-  export PPSV_DATA_ROOT="${PPSV_DATA_ROOT:-/srv/ppsv-app-data}"
-  export PPSV_CURRENT_LINK="${PPSV_CURRENT_LINK:-/srv/shiny-server/ppsv-app}"
+  export PPSV_RELEASES_ROOT="${PPSV_RELEASES_ROOT:-/srv/ppsvf-app/releases}"
+  export PPSV_DATA_ROOT="${PPSV_DATA_ROOT:-/srv/ppsvf-app-data}"
+  export PPSV_CURRENT_LINK="${PPSV_CURRENT_LINK:-/srv/shiny-server/ppsvf-app}"
   export PPSV_DB_FILE="${PPSV_DB_FILE:-${PPSV_DATA_ROOT}/ppsv_projects.db}"
   export PPSV_POOL_ROOT="${PPSV_POOL_ROOT:-/fs/pool/pool-ppsvf-projects}"
   export PPSV_FALLBACK_ROOT="${PPSV_FALLBACK_ROOT:-${PPSV_DATA_ROOT}/uploads_pending_pool}"
-  export PPSV_PUBLIC_URL="${PPSV_PUBLIC_URL:-https://ppcf-vm.biochem.mpg.de/ppsv-app/}"
+  export PPSV_PUBLIC_URL="${PPSV_PUBLIC_URL:-https://ppcf-vm.biochem.mpg.de/ppsvf-app/}"
   export PPSV_BACKUP_RETENTION_DAYS="${PPSV_BACKUP_RETENTION_DAYS:-30}"
   export PPSV_ALLOW_LOCAL_BACKUP="${PPSV_ALLOW_LOCAL_BACKUP:-0}"
   export PPSV_BACKUP_EXPECTED_SOURCE="${PPSV_BACKUP_EXPECTED_SOURCE:-}"
@@ -178,7 +178,7 @@ validate_active_app_dir() {
   active_app="$(readlink -f "${PPSV_CURRENT_LINK}" 2>/dev/null || true)"
   [[ -n "${active_app}" && -d "${active_app}" ]] || die "Active PPSV application release is unavailable."
   case "${active_app}" in
-    "${PPSV_RELEASES_ROOT}"/*/ppsv-app) ;;
+    "${PPSV_RELEASES_ROOT}"/*/ppsvf-app) ;;
     *) die "Active PPSV application is outside the immutable release root: ${active_app}" ;;
   esac
   printf '%s\n' "${active_app}"

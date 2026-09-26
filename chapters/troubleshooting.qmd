@@ -17,9 +17,9 @@ sudo systemctl --no-pager --full status apache2 shiny-server.service \
 sudo journalctl -u apache2 -u shiny-server.service --since '-30 minutes'
 sudo apache2ctl configtest
 sudo ss -ltnp | grep 3838
-sudo readlink -f /srv/shiny-server/ppsv-app
-sudo stat -c '%U:%G %a %n' /etc/ppsv-app/ppsv-app.env \
-  /srv/ppsv-app-data/ppsv_projects.db
+sudo readlink -f /srv/shiny-server/ppsvf-app
+sudo stat -c '%U:%G %a %n' /etc/ppsvf-app/ppsvf-app.env \
+  /srv/ppsvf-app-data/ppsv_projects.db
 ```
 
 Do not print the entire environment file into a ticket or shared terminal log;
@@ -33,20 +33,20 @@ Check both public routes without `-k`:
 curl -I http://ppcf-vm.biochem.mpg.de/
 curl -I https://ppcf-vm.biochem.mpg.de/
 sudo apache2ctl configtest
-sudo tail -n 100 /var/log/apache2/ppsv-app-ssl-error.log
+sudo tail -n 100 /var/log/apache2/ppsvf-app-ssl-error.log
 ```
 
-Expected: HTTP redirects to HTTPS, and HTTPS `/` redirects to `/ppsv-app/`
+Expected: HTTP redirects to HTTPS, and HTTPS `/` redirects to `/ppsvf-app/`
 after normal CA validation. If validation fails, inspect the leaf SAN, expiry,
 bundle order, intermediate chain, and key match. Rerun provisioning with the
 correct TLS source files; do not copy a guessed key or a CSR into place.
 
-## `/ppsv-app/` returns 404 or 502
+## `/ppsvf-app/` returns 404 or 502
 
 ```bash
-sudo readlink -f /srv/shiny-server/ppsv-app
-sudo test -f /srv/shiny-server/ppsv-app/app.R
-curl -I http://127.0.0.1:3838/ppsv-app/
+sudo readlink -f /srv/shiny-server/ppsvf-app
+sudo test -f /srv/shiny-server/ppsvf-app/app.R
+curl -I http://127.0.0.1:3838/ppsvf-app/
 sudo journalctl -u shiny-server.service -n 150 --no-pager
 sudo find /var/log/shiny-server -maxdepth 1 -type f -name '*ppsv*' -print
 ```
@@ -61,11 +61,11 @@ rollback script. Do not copy mutable state into the release to make it start.
 Confirm only non-secret settings and the active vhost:
 
 ```bash
-sudo grep -E '^(AUTH_MODE|PPSV_PUBLIC_URL)=' /etc/ppsv-app/ppsv-app.env
+sudo grep -E '^(AUTH_MODE|PPSV_PUBLIC_URL)=' /etc/ppsvf-app/ppsvf-app.env
 sudo apache2ctl -M | grep -E 'authnz_ldap|headers|proxy|proxy_wstunnel'
 sudo grep -n 'RequestHeader.*X-Remote' \
   /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf
-sudo tail -n 100 /var/log/apache2/ppsv-app-ssl-error.log
+sudo tail -n 100 /var/log/apache2/ppsvf-app-ssl-error.log
 ```
 
 `AUTH_MODE` must be `ldap`. Apache must remove client identity headers at
@@ -80,7 +80,7 @@ which must fail closed.
 ## A user has the wrong role or cannot sign in
 
 Normalize the username to lowercase and compare it with the fixed allowlist in
-`ppsv-app/R/config.R`. Roles cannot be edited in the admin directory and do not
+`ppsvf-app/R/config.R`. Roles cannot be edited in the admin directory and do not
 come from `b_profa`. Check the account's active flag and last login in the admin
 directory.
 
@@ -91,9 +91,9 @@ and deploy a new release; do not edit a database role.
 ## Database startup or migration error
 
 ```bash
-sudo -u ppsvf-shiny-user sqlite3 /srv/ppsv-app-data/ppsv_projects.db \
+sudo -u ppsvf-shiny-user sqlite3 /srv/ppsvf-app-data/ppsv_projects.db \
   'PRAGMA integrity_check; SELECT * FROM schema_migrations ORDER BY version;'
-sudo stat -c '%U:%G %a %n' /srv/ppsv-app-data/ppsv_projects.db*
+sudo stat -c '%U:%G %a %n' /srv/ppsvf-app-data/ppsv_projects.db*
 sudo journalctl -u shiny-server.service -n 150 --no-pager
 ```
 
@@ -141,7 +141,7 @@ Confirm the mount identity, permissions, and service-user access:
 findmnt -T /fs/pool/pool-ppsvf-projects
 sudo getfacl /fs/pool/pool-ppsvf-projects
 sudo -u ppsvf-shiny-user test -w /fs/pool/pool-ppsvf-projects
-sudo find /srv/ppsv-app-data/uploads_pending_pool -maxdepth 3 -type f -print
+sudo find /srv/ppsvf-app-data/uploads_pending_pool -maxdepth 3 -type f -print
 ```
 
 Do not recursively `chmod 777`, `chmod 666`, or `chown` the facility pool. Ask
@@ -175,7 +175,7 @@ an administrator can archive it.
 ```bash
 sudo systemctl status ppsv-backup.service --no-pager
 sudo journalctl -u ppsv-backup.service -n 150 --no-pager
-sudo grep '^PPSV_BACKUP_DIR=' /etc/ppsv-app/ppsv-app.env
+sudo grep '^PPSV_BACKUP_DIR=' /etc/ppsvf-app/ppsvf-app.env
 findmnt -T /the/configured/backup/path
 df -h /the/configured/backup/path
 ```

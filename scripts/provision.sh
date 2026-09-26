@@ -32,7 +32,7 @@ while (($#)); do
 done
 
 require_root
-[[ -n "${ENV_FILE}" ]] || die "--env is required. Start from scripts/ppsv-app.env.example."
+[[ -n "${ENV_FILE}" ]] || die "--env is required. Start from scripts/ppsvf-app.env.example."
 load_runtime_env "${ENV_FILE}"
 validate_runtime_paths
 
@@ -40,7 +40,7 @@ validate_runtime_paths
 [[ "${APP_RUN_GROUP}" == ppsvf-shiny ]] || die "Production APP_RUN_GROUP must be the private group ppsvf-shiny."
 [[ "${PPSV_POOL_GROUP}" == b_profa ]] || die "Production PPSV_POOL_GROUP must be b_profa."
 [[ "${AUTH_MODE:-}" == ldap ]] || die "Production AUTH_MODE must be ldap."
-[[ "${PPSV_PUBLIC_URL}" == https://ppcf-vm.biochem.mpg.de/ppsv-app/ ]] || die "Unexpected PPSV_PUBLIC_URL: ${PPSV_PUBLIC_URL}"
+[[ "${PPSV_PUBLIC_URL}" == https://ppcf-vm.biochem.mpg.de/ppsvf-app/ ]] || die "Unexpected PPSV_PUBLIC_URL: ${PPSV_PUBLIC_URL}"
 
 check_args=(--repo "${PPSV_REPO_ROOT_DEFAULT}" --env "${ENV_FILE}")
 ((INSTALL_SYSTEM == 0)) || check_args+=(--install-system)
@@ -144,23 +144,23 @@ validate_backup_destination
 # Snapshot every managed configuration file before the first replacement so a
 # later Apache/systemd failure cannot leave a mixed old/new installation.
 config_targets=(
-  /etc/ppsv-app/ppsv-app.env
-  /etc/ssl/certs/ppsv-app-fullchain.pem
-  /etc/ssl/private/ppsv-app.key
+  /etc/ppsvf-app/ppsvf-app.env
+  /etc/ssl/certs/ppsvf-app-fullchain.pem
+  /etc/ssl/private/ppsvf-app.key
   /etc/shiny-server/shiny-server.conf
   /etc/apache2/sites-available/ppsv-vm-shiny-80.conf
   /etc/apache2/sites-available/ppsv-vm-shiny-443.conf
-  /usr/local/libexec/ppsv-app/lib.sh
-  /usr/local/libexec/ppsv-app/backup.sh
-  /usr/local/libexec/ppsv-app/backup_database.R
-  /usr/local/libexec/ppsv-app/check_requirements.sh
-  /usr/local/libexec/ppsv-app/deploy.sh
-  /usr/local/libexec/ppsv-app/process_mail_outbox.sh
-  /usr/local/libexec/ppsv-app/reconcile_pool.sh
-  /usr/local/libexec/ppsv-app/restore_backup.sh
-  /usr/local/libexec/ppsv-app/rollback.sh
-  /usr/local/libexec/ppsv-app/verify_deployment.sh
-  /etc/systemd/system/shiny-server.service.d/ppsv-app.conf
+  /usr/local/libexec/ppsvf-app/lib.sh
+  /usr/local/libexec/ppsvf-app/backup.sh
+  /usr/local/libexec/ppsvf-app/backup_database.R
+  /usr/local/libexec/ppsvf-app/check_requirements.sh
+  /usr/local/libexec/ppsvf-app/deploy.sh
+  /usr/local/libexec/ppsvf-app/process_mail_outbox.sh
+  /usr/local/libexec/ppsvf-app/reconcile_pool.sh
+  /usr/local/libexec/ppsvf-app/restore_backup.sh
+  /usr/local/libexec/ppsvf-app/rollback.sh
+  /usr/local/libexec/ppsvf-app/verify_deployment.sh
+  /etc/systemd/system/shiny-server.service.d/ppsvf-app.conf
   /etc/systemd/system/ppsv-mail-outbox.service
   /etc/systemd/system/ppsv-mail-outbox.timer
   /etc/systemd/system/ppsv-backup.service
@@ -192,12 +192,12 @@ actual_primary_group="$(id -gn "${APP_RUN_USER}")"
 getent group "${PPSV_POOL_GROUP}" >/dev/null || die "Required pool group does not exist: ${PPSV_POOL_GROUP}"
 
 config_started=1
-install -d -o root -g "${APP_RUN_GROUP}" -m 0750 /etc/ppsv-app
-if [[ "$(readlink -f "${ENV_FILE}")" != /etc/ppsv-app/ppsv-app.env ]]; then
-  install -o root -g "${APP_RUN_GROUP}" -m 0640 "${ENV_FILE}" /etc/ppsv-app/ppsv-app.env
+install -d -o root -g "${APP_RUN_GROUP}" -m 0750 /etc/ppsvf-app
+if [[ "$(readlink -f "${ENV_FILE}")" != /etc/ppsvf-app/ppsvf-app.env ]]; then
+  install -o root -g "${APP_RUN_GROUP}" -m 0640 "${ENV_FILE}" /etc/ppsvf-app/ppsvf-app.env
 else
-  chown root:"${APP_RUN_GROUP}" /etc/ppsv-app/ppsv-app.env
-  chmod 0640 /etc/ppsv-app/ppsv-app.env
+  chown root:"${APP_RUN_GROUP}" /etc/ppsvf-app/ppsvf-app.env
+  chmod 0640 /etc/ppsvf-app/ppsvf-app.env
 fi
 
 install -d -o root -g "${APP_RUN_GROUP}" -m 0750 "${PPSV_RELEASES_ROOT}"
@@ -227,8 +227,8 @@ install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0750 \
   "${PPSV_BACKUP_DIR}" "${PPSV_BACKUP_DIR}/database" "${PPSV_BACKUP_DIR}/fallback"
 runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_BACKUP_DIR}" || die "Runtime user cannot write PPSV_BACKUP_DIR."
 
-install -o root -g root -m 0644 "${TLS_BUNDLE_FILE}" /etc/ssl/certs/ppsv-app-fullchain.pem
-install -o root -g root -m 0600 "${TLS_KEY_FILE}" /etc/ssl/private/ppsv-app.key
+install -o root -g root -m 0644 "${TLS_BUNDLE_FILE}" /etc/ssl/certs/ppsvf-app-fullchain.pem
+install -o root -g root -m 0600 "${TLS_KEY_FILE}" /etc/ssl/private/ppsvf-app.key
 
 install -o root -g root -m 0644 "${SCRIPT_DIR}/shiny-server.conf" /etc/shiny-server/shiny-server.conf
 install -o root -g root -m 0644 "${SCRIPT_DIR}/ppsv-vm-shiny-80.conf" /etc/apache2/sites-available/ppsv-vm-shiny-80.conf
@@ -239,13 +239,13 @@ a2dissite 000-default.conf default-ssl.conf 2>/dev/null || true
 a2ensite ppsv-vm-shiny-80.conf ppsv-vm-shiny-443.conf
 apache2ctl configtest
 
-install -d -o root -g root -m 0755 /usr/local/libexec/ppsv-app
+install -d -o root -g root -m 0755 /usr/local/libexec/ppsvf-app
 for helper in lib.sh backup.sh backup_database.R check_requirements.sh deploy.sh process_mail_outbox.sh reconcile_pool.sh restore_backup.sh rollback.sh verify_deployment.sh; do
-  install -o root -g root -m 0755 "${SCRIPT_DIR}/${helper}" "/usr/local/libexec/ppsv-app/${helper}"
+  install -o root -g root -m 0755 "${SCRIPT_DIR}/${helper}" "/usr/local/libexec/ppsvf-app/${helper}"
 done
 
 install -d -o root -g root -m 0755 /etc/systemd/system/shiny-server.service.d
-install -o root -g root -m 0644 "${SCRIPT_DIR}/systemd/shiny-server-ppsv.conf" /etc/systemd/system/shiny-server.service.d/ppsv-app.conf
+install -o root -g root -m 0644 "${SCRIPT_DIR}/systemd/shiny-server-ppsv.conf" /etc/systemd/system/shiny-server.service.d/ppsvf-app.conf
 for unit in ppsv-mail-outbox.service ppsv-mail-outbox.timer ppsv-backup.service ppsv-backup.timer ppsv-pool-reconcile.service; do
   install -o root -g root -m 0644 "${SCRIPT_DIR}/systemd/${unit}" "/etc/systemd/system/${unit}"
 done

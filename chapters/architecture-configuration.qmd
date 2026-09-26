@@ -18,13 +18,13 @@ browser
   -> SQLite + external file storage + durable mail outbox
 ```
 
-Port 80 only redirects to HTTPS. HTTPS `/` redirects to `/ppsv-app/`.
+Port 80 only redirects to HTTPS. HTTPS `/` redirects to `/ppsvf-app/`.
 Shiny Server must listen on `127.0.0.1:3838`, never a wildcard address.
 
 ## Code boundaries
 
-`ppsv-app/app.R` composes the Shiny application. Backend responsibilities are
-separated under `ppsv-app/R/`:
+`ppsvf-app/app.R` composes the Shiny application. Backend responsibilities are
+separated under `ppsvf-app/R/`:
 
 | Module | Responsibility |
 |---|---|
@@ -47,26 +47,26 @@ using the active database user and requested record before every read or write.
 
 | Setting | Production default | Purpose |
 |---|---|---|
-| `PPSV_RELEASES_ROOT` | `/srv/ppsv-app/releases` | Root-owned immutable release directories |
-| `PPSV_CURRENT_LINK` | `/srv/shiny-server/ppsv-app` | Atomic symlink to the active application |
-| `PPSV_DATA_ROOT` | `/srv/ppsv-app-data` | Persistent database, locks, fallback, deployment records, renv cache |
-| `PPSV_DB_FILE` | `/srv/ppsv-app-data/ppsv_projects.db` | Fresh PPSV SQLite database |
+| `PPSV_RELEASES_ROOT` | `/srv/ppsvf-app/releases` | Root-owned immutable release directories |
+| `PPSV_CURRENT_LINK` | `/srv/shiny-server/ppsvf-app` | Atomic symlink to the active application |
+| `PPSV_DATA_ROOT` | `/srv/ppsvf-app-data` | Persistent database, locks, fallback, deployment records, renv cache |
+| `PPSV_DB_FILE` | `/srv/ppsvf-app-data/ppsv_projects.db` | Fresh PPSV SQLite database |
 | `PPSV_POOL_ROOT` | `/fs/pool/pool-ppsvf-projects` | Primary files, outside the web root |
-| `PPSV_FALLBACK_ROOT` | `/srv/ppsv-app-data/uploads_pending_pool` | Persistent storage while pool is unavailable |
+| `PPSV_FALLBACK_ROOT` | `/srv/ppsvf-app-data/uploads_pending_pool` | Persistent storage while pool is unavailable |
 
 The database and uploads must never live inside a release. The active symlink
 may be replaced or rolled back without touching mutable state.
 
 ## Runtime configuration
 
-The tracked `scripts/ppsv-app.env.example` documents the interface. The real
-file is `/etc/ppsv-app/ppsv-app.env`, root-owned, not a symlink, and mode `0640`
+The tracked `scripts/ppsvf-app.env.example` documents the interface. The real
+file is `/etc/ppsvf-app/ppsvf-app.env`, root-owned, not a symlink, and mode `0640`
 or stricter.
 
 | Variable | Meaning |
 |---|---|
 | `AUTH_MODE` | `ldap` in production; `test` only in an isolated test harness |
-| `PPSV_PUBLIC_URL` | Canonical `https://ppcf-vm.biochem.mpg.de/ppsv-app/` URL |
+| `PPSV_PUBLIC_URL` | Canonical `https://ppcf-vm.biochem.mpg.de/ppsvf-app/` URL |
 | `PPSV_DB_FILE` | SQLite path below `PPSV_DATA_ROOT` |
 | `PPSV_POOL_ROOT` | Primary facility project pool |
 | `PPSV_POOL_EXPECTED_SOURCE` | Exact reviewed `findmnt` source for the facility pool; provisioning/deployment stop if it changes |
@@ -122,7 +122,7 @@ the deployment script.
 
 ## Dependencies and platform gate
 
-R packages are pinned in `ppsv-app/renv.lock`; deployment restores that lock
+R packages are pinned in `ppsvf-app/renv.lock`; deployment restores that lock
 before activation. Shiny Server must be installed from a local reviewed package
 using an independently reviewed checksum. The preflight validates Ubuntu
 26.04, `amd64`, the exact Shiny Server version, Java configuration, and actual

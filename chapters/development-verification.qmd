@@ -11,7 +11,7 @@ storage roots. Never reuse the production environment file or point a local
 process at the facility pool.
 
 ```bash
-Rscript -e 'renv::restore(project = "ppsv-app", prompt = FALSE)'
+Rscript -e 'renv::restore(project = "ppsvf-app", prompt = FALSE)'
 dev_root="$(mktemp -d)"
 mkdir -p "${dev_root}/pool" "${dev_root}/fallback"
 AUTH_MODE=test \
@@ -23,7 +23,7 @@ PPSV_POOL_ROOT="${dev_root}/pool" \
 PPSV_ALLOW_LOCAL_POOL=1 \
 PPSV_FALLBACK_ROOT="${dev_root}/fallback" \
 PPSV_TICKET_MODE=disabled \
-Rscript -e 'shiny::runApp("ppsv-app", port = 3838, launch.browser = TRUE)'
+Rscript -e 'shiny::runApp("ppsvf-app", port = 3838, launch.browser = TRUE)'
 ```
 
 `PPSV_ALLOW_LOCAL_POOL=1` is limited to an isolated development/test directory.
@@ -56,7 +56,7 @@ Review these invariants on every domain change:
 Never edit a deployed database by hand as the implementation of a schema
 change.
 
-1. Add the next sequential migration in `ppsv-app/R/database.R`.
+1. Add the next sequential migration in `ppsvf-app/R/database.R`.
 2. Make it idempotent through the migration ledger and transactional as a
    unit.
 3. Preserve every existing PPSV row and constraint unless a reviewed data
@@ -102,7 +102,7 @@ tests use temporary roots and must not touch the facility pool.
 
 ```bash
 # Parse all R sources and tests.
-Rscript -e 'files <- c(list.files("ppsv-app", "[.]R$", recursive=TRUE, full.names=TRUE), list.files("tests", "[.]R$", recursive=TRUE, full.names=TRUE)); invisible(lapply(files, parse))'
+Rscript -e 'files <- c(list.files("ppsvf-app", "[.]R$", recursive=TRUE, full.names=TRUE), list.files("tests", "[.]R$", recursive=TRUE, full.names=TRUE)); invisible(lapply(files, parse))'
 
 # Check every shell entry point.
 bash -n scripts/*.sh deploy.sh
@@ -111,7 +111,7 @@ bash -n scripts/*.sh deploy.sh
 shellcheck scripts/*.sh deploy.sh
 
 # Prove a clean dependency restore in an empty project library/cache context.
-Rscript -e 'renv::restore(project = "ppsv-app", prompt = FALSE)'
+Rscript -e 'renv::restore(project = "ppsvf-app", prompt = FALSE)'
 
 # Render the operator book and fail on broken inputs.
 quarto render
@@ -127,8 +127,8 @@ Review package source, version, license, and transitive changes before updating
 the lock. After making an intentional package change:
 
 ```bash
-Rscript -e 'renv::snapshot(project = "ppsv-app", prompt = FALSE)'
-git diff -- ppsv-app/renv.lock
+Rscript -e 'renv::snapshot(project = "ppsvf-app", prompt = FALSE)'
+git diff -- ppsvf-app/renv.lock
 ```
 
 Restore from scratch and rerun all tests. Do not let deployment resolve an

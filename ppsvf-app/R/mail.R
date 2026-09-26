@@ -93,7 +93,7 @@ ppsv_mail_settings <- function(env = Sys.getenv, config = NULL) {
     service_from = trimws(env("PPSV_MAIL_FROM", "ppsv-service@biochem.mpg.de")),
     public_url = sub("/+$", "", trimws(env(
       "PPSV_PUBLIC_URL",
-      "https://ppcf-vm.biochem.mpg.de/ppsv-app/"
+      "https://ppcf-vm.biochem.mpg.de/ppsvf-app/"
     ))),
     smtp = list(
       host.name = trimws(env("PPSV_SMTP_HOST", "")),

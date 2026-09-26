@@ -1,15 +1,15 @@
 [Unit]
 Description=Create and verify the PPSV database and fallback-upload backup
 After=local-fs.target
-ConditionPathExists=/etc/ppsv-app/ppsv-app.env
+ConditionPathExists=/etc/ppsvf-app/ppsvf-app.env
 
 [Service]
 Type=oneshot
 User=ppsvf-shiny-user
 Group=ppsvf-shiny
-EnvironmentFile=/etc/ppsv-app/ppsv-app.env
+EnvironmentFile=/etc/ppsvf-app/ppsvf-app.env
 Environment=PPSV_ENV_PRELOADED=1
-ExecStart=/usr/local/libexec/ppsv-app/backup.sh
+ExecStart=/usr/local/libexec/ppsvf-app/backup.sh
 UMask=0007
 NoNewPrivileges=true
 PrivateTmp=true

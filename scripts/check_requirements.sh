@@ -16,7 +16,7 @@ Usage: check_requirements.sh [options]
 
 Read-only by default. Options:
   --install-system          Install missing Ubuntu packages with apt.
-  --repo PATH               Repository containing ppsv-app/renv.lock.
+  --repo PATH               Repository containing ppsvf-app/renv.lock.
   --runtime-project PATH    Also load rJava and mailR from this restored project.
   --env PATH                Read SHINY_SERVER_VERSION and path overrides.
   -h, --help                Show this help.
@@ -130,9 +130,9 @@ done
 installed_shiny_version="$(dpkg-query -W -f='${Version}' shiny-server 2>/dev/null || true)"
 [[ "${installed_shiny_version}" == "${EXPECTED_SHINY_VERSION}" ]] || die "Expected exact Shiny Server Debian package ${EXPECTED_SHINY_VERSION}; got: ${installed_shiny_version:-unknown}"
 
-LOCK_FILE="${REPO_ROOT%/}/ppsv-app/renv.lock"
+LOCK_FILE="${REPO_ROOT%/}/ppsvf-app/renv.lock"
 [[ -f "${LOCK_FILE}" ]] || die "Pinned dependency lock is missing: ${LOCK_FILE}"
-LOCK_SIDECAR="${REPO_ROOT%/}/ppsv-app/renv.lock.sha256"
+LOCK_SIDECAR="${REPO_ROOT%/}/ppsvf-app/renv.lock.sha256"
 [[ -f "${LOCK_SIDECAR}" ]] || die "Reviewed dependency-lock checksum is missing: ${LOCK_SIDECAR}"
 (
   cd "$(dirname "${LOCK_FILE}")"

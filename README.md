@@ -4,7 +4,7 @@ This repository contains the Shiny request-management system for the Protein
 Production and Structural Validation Facility (PPSV) at the Max Planck
 Institute of Biochemistry.
 
-Production URL: `https://ppcf-vm.biochem.mpg.de/ppsv-app/`
+Production URL: `https://ppcf-vm.biochem.mpg.de/ppsvf-app/`
 
 Facility contact: [ppsv-request@biochem.mpg.de](mailto:ppsv-request@biochem.mpg.de),
 +49 89 8578-3629.
@@ -38,22 +38,22 @@ Mutable state is outside immutable releases:
 
 | Purpose | Production path |
 |---|---|
-| Active application symlink | `/srv/shiny-server/ppsv-app` |
-| Immutable releases | `/srv/ppsv-app/releases` |
-| SQLite database and fallback storage | `/srv/ppsv-app-data` |
+| Active application symlink | `/srv/shiny-server/ppsvf-app` |
+| Immutable releases | `/srv/ppsvf-app/releases` |
+| SQLite database and fallback storage | `/srv/ppsvf-app-data` |
 | Primary request files | `/fs/pool/pool-ppsvf-projects` |
-| Runtime secrets | `/etc/ppsv-app/ppsv-app.env` |
+| Runtime secrets | `/etc/ppsvf-app/ppsvf-app.env` |
 
 Never deploy or migrate the copied `ms_projects.db`. PPSV initializes a fresh
 database at `PPSV_DB_FILE` and subsequently applies only PPSV migrations. Do
 not place a database, upload directory, real secret, or `.Renviron` in
-`ppsv-app/`.
+`ppsvf-app/`.
 
 ## Repository layout
 
 | Path | Contents |
 |---|---|
-| `ppsv-app/` | Shiny application, backend modules, migrations, assets, and `renv.lock` |
+| `ppsvf-app/` | Shiny application, backend modules, migrations, assets, and `renv.lock` |
 | `scripts/` | Idempotent provisioning, deployment, rollback, backup, restore, mail, and storage operations |
 | `tests/testthat/` | Schema, authorization, mail, storage, PDF, and UI tests |
 | `PPSV_Submission_form.xlsx` | Source reference for the 18 required and eight optional service fields |
@@ -65,7 +65,7 @@ Restore the locked dependencies and run with an isolated database and upload
 directory. Never point local development at production paths.
 
 ```bash
-(cd ppsv-app && Rscript -e 'renv::restore(project = getwd(), prompt = FALSE)')
+(cd ppsvf-app && Rscript -e 'renv::restore(project = getwd(), prompt = FALSE)')
 dev_root="$(mktemp -d)"
 mkdir -p "${dev_root}/pool" "${dev_root}/fallback"
 AUTH_MODE=test \
@@ -76,7 +76,7 @@ PPSV_DB_FILE="${dev_root}/ppsv.sqlite" \
 PPSV_POOL_ROOT="${dev_root}/pool" \
 PPSV_ALLOW_LOCAL_POOL=1 \
 PPSV_FALLBACK_ROOT="${dev_root}/fallback" \
-Rscript -e 'shiny::runApp("ppsv-app", port = 3838, launch.browser = TRUE)'
+Rscript -e 'shiny::runApp("ppsvf-app", port = 3838, launch.browser = TRUE)'
 ```
 
 Run the automated checks from the repository root:
@@ -100,9 +100,9 @@ by the application repository itself.
    requester/auto-reply test, and an external backup destination plus facility
    pool-snapshot policy.
 2. Create a root-owned environment file from
-   `scripts/ppsv-app.env.example`; mode must be `0640` or stricter.
+   `scripts/ppsvf-app.env.example`; mode must be `0640` or stricter.
 3. Install a reviewed Shiny Server package with
-   `scripts/install_shiny_server.sh --env /root/ppsv-app.env --deb ...`; the
+   `scripts/install_shiny_server.sh --env /root/ppsvf-app.env --deb ...`; the
    template pins the independently reviewed SHA-256 checksum.
 4. Run `sudo scripts/provision.sh --env /path/to/operator.env`.
 5. Run `sudo scripts/deploy.sh --source "$PWD"`.

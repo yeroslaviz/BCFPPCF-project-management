@@ -6,16 +6,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib.sh"
 
 SOURCE_ROOT="${PPSV_REPO_ROOT_DEFAULT}"
-ENV_FILE="${PPSV_ENV_FILE:-/etc/ppsv-app/ppsv-app.env}"
+ENV_FILE="${PPSV_ENV_FILE:-/etc/ppsvf-app/ppsvf-app.env}"
 RELEASE_ID=""
 
 usage() {
   cat <<'USAGE'
 Usage: deploy.sh [--source REPOSITORY] [--env FILE] [--release ID]
 
-Builds an immutable staged release, restores ppsv-app/renv.lock, creates a
+Builds an immutable staged release, restores ppsvf-app/renv.lock, creates a
 verified pre-deployment backup, runs database migrations with Shiny stopped,
-then atomically changes /srv/shiny-server/ppsv-app. A failed health check
+then atomically changes /srv/shiny-server/ppsvf-app. A failed health check
 automatically returns the code symlink to the previous release.
 USAGE
 }
@@ -48,7 +48,7 @@ validate_runtime_paths
 acquire_lock "/run/lock/ppsv-deploy.lock" 8
 
 SOURCE_ROOT="$(cd "${SOURCE_ROOT}" && pwd)"
-SOURCE_APP="${SOURCE_ROOT}/ppsv-app"
+SOURCE_APP="${SOURCE_ROOT}/ppsvf-app"
 [[ -f "${SOURCE_APP}/app.R" ]] || die "Application entrypoint missing: ${SOURCE_APP}/app.R"
 [[ -f "${SOURCE_APP}/renv.lock" ]] || die "Pinned dependency lock missing: ${SOURCE_APP}/renv.lock"
 [[ -f "${SOURCE_APP}/renv.lock.sha256" ]] || die "Reviewed lock checksum missing: ${SOURCE_APP}/renv.lock.sha256"
@@ -127,7 +127,7 @@ cleanup_deploy() {
 }
 trap cleanup_deploy EXIT
 
-install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0750 "${STAGING_ROOT}/ppsv-app"
+install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0750 "${STAGING_ROOT}/ppsvf-app"
 rsync -a --delete \
   --exclude '.Renviron' \
   --exclude '.Rproj.user/' \
@@ -135,10 +135,10 @@ rsync -a --delete \
   --exclude '*.db' \
   --exclude '*.sqlite*' \
   --exclude 'uploads_pending_pool/' \
-  "${SOURCE_APP}/" "${STAGING_ROOT}/ppsv-app/"
+  "${SOURCE_APP}/" "${STAGING_ROOT}/ppsvf-app/"
 
 (
-  cd "${STAGING_ROOT}/ppsv-app"
+  cd "${STAGING_ROOT}/ppsvf-app"
   sha256sum --check --strict renv.lock.sha256
 ) || die "Staged renv.lock checksum differs from the reviewed source."
 
@@ -152,9 +152,9 @@ find "${STAGING_ROOT}" -type f -exec chmod 0640 {} +
 
 log "Restoring locked R dependencies into staged release ${RELEASE_ID}."
 (
-  cd "${STAGING_ROOT}/ppsv-app"
+  cd "${STAGING_ROOT}/ppsvf-app"
   runuser -u "${APP_RUN_USER}" -- env \
-    RENV_PROJECT="${STAGING_ROOT}/ppsv-app" \
+    RENV_PROJECT="${STAGING_ROOT}/ppsvf-app" \
     RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" \
     RENV_CONFIG_CACHE_SYMLINKS=false \
     Rscript -e '
@@ -169,12 +169,12 @@ log "Restoring locked R dependencies into staged release ${RELEASE_ID}."
 
 "${SCRIPT_DIR}/check_requirements.sh" \
   --repo "${STAGING_ROOT}" \
-  --runtime-project "${STAGING_ROOT}/ppsv-app" \
+  --runtime-project "${STAGING_ROOT}/ppsvf-app" \
   --env "${ENV_FILE}"
 
 if [[ -f "${PPSV_DB_FILE}" ]]; then
   log "Creating verified pre-deployment database and fallback backup."
-  PPSV_ENV_FILE="${ENV_FILE}" /usr/local/libexec/ppsv-app/backup.sh
+  PPSV_ENV_FILE="${ENV_FILE}" /usr/local/libexec/ppsvf-app/backup.sh
 fi
 
 # Prevent a reconciliation, restore, or scheduled backup from crossing the
@@ -190,7 +190,7 @@ systemctl stop shiny-server.service
 
 log "Applying transactional database migrations."
 (
-  cd "${STAGING_ROOT}/ppsv-app"
+  cd "${STAGING_ROOT}/ppsvf-app"
   runuser -u "${APP_RUN_USER}" -- env PPSV_RESET_DB=0 RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" Rscript setup_database.R
 )
 [[ -f "${PPSV_DB_FILE}" ]] || die "Database initializer did not create ${PPSV_DB_FILE}."
@@ -200,20 +200,20 @@ chmod 0660 "${PPSV_DB_FILE}"
 printf '%s\n' "${git_revision}" >"${STAGING_ROOT}/REVISION"
 (
   cd "${STAGING_ROOT}"
-  find ppsv-app -type f -print0 | sort -z | xargs -0 sha256sum >MANIFEST.sha256
+  find ppsvf-app -type f -print0 | sort -z | xargs -0 sha256sum >MANIFEST.sha256
 )
 chown -R root:"${APP_RUN_GROUP}" "${STAGING_ROOT}"
 find "${STAGING_ROOT}" -type d -exec chmod 0750 {} +
 find "${STAGING_ROOT}" -type f -exec chmod 0640 {} +
 mv "${STAGING_ROOT}" "${RELEASE_ROOT}"
-atomic_symlink "${RELEASE_ROOT}/ppsv-app" "${PPSV_CURRENT_LINK}"
+atomic_symlink "${RELEASE_ROOT}/ppsvf-app" "${PPSV_CURRENT_LINK}"
 release_activated=1
 
 systemctl start shiny-server.service
 
 healthy=0
 for _ in {1..30}; do
-  status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 http://127.0.0.1:3838/ppsv-app/ || true)"
+  status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 5 http://127.0.0.1:3838/ppsvf-app/ || true)"
   if [[ "${status}" =~ ^(2|3)[0-9][0-9]$ ]]; then
     healthy=1
     break

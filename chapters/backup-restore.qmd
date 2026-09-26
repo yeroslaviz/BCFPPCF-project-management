@@ -80,7 +80,7 @@ the SHA-256 sidecars, SQLite integrity/schema/foreign keys, archive readability,
 and unsafe archive paths.
 
 ```bash
-sudo /usr/local/libexec/ppsv-app/restore_backup.sh \
+sudo /usr/local/libexec/ppsvf-app/restore_backup.sh \
   --database /external/ppsv/database/ppsv_projects_TIMESTAMP.sqlite \
   --fallback /external/ppsv/fallback/uploads_pending_pool_TIMESTAMP.tar.gz
 ```
@@ -117,7 +117,7 @@ Obtain explicit incident authorization and identify the recovery point first.
 The restore command requires both `--apply` and `--confirm-data-loss`:
 
 ```bash
-sudo /usr/local/libexec/ppsv-app/restore_backup.sh \
+sudo /usr/local/libexec/ppsvf-app/restore_backup.sh \
   --database /external/ppsv/database/ppsv_projects_TIMESTAMP.sqlite \
   --fallback /external/ppsv/fallback/uploads_pending_pool_TIMESTAMP.tar.gz \
   --apply \
@@ -125,7 +125,7 @@ sudo /usr/local/libexec/ppsv-app/restore_backup.sh \
 ```
 
 The script verifies inputs before stopping services, preserves a pre-restore
-database/fallback copy under `/srv/ppsv-app-data/pre_restore/TIMESTAMP`, stages
+database/fallback copy under `/srv/ppsvf-app-data/pre_restore/TIMESTAMP`, stages
 replacement state, rejects fallback symlinks, reapplies `2770`/`0660`
 permissions, and restarts Shiny and the mail timer.
 

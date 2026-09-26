@@ -1,16 +1,16 @@
 [Unit]
 Description=Reconcile PPSV fallback uploads into the project pool
 After=local-fs.target
-ConditionPathExists=/srv/shiny-server/ppsv-app/R/load_backend.R
+ConditionPathExists=/srv/shiny-server/ppsvf-app/R/load_backend.R
 
 [Service]
 Type=oneshot
 User=ppsvf-shiny-user
 Group=ppsvf-shiny
-EnvironmentFile=/etc/ppsv-app/ppsv-app.env
+EnvironmentFile=/etc/ppsvf-app/ppsvf-app.env
 Environment=PPSV_ENV_PRELOADED=1
-WorkingDirectory=/srv/shiny-server/ppsv-app
-ExecStart=/usr/local/libexec/ppsv-app/reconcile_pool.sh
+WorkingDirectory=/srv/shiny-server/ppsvf-app
+ExecStart=/usr/local/libexec/ppsvf-app/reconcile_pool.sh
 UMask=0007
 NoNewPrivileges=true
 PrivateTmp=true

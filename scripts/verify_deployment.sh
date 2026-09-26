@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 source "${SCRIPT_DIR}/lib.sh"
 
-ENV_FILE="${PPSV_ENV_FILE:-/etc/ppsv-app/ppsv-app.env}"
+ENV_FILE="${PPSV_ENV_FILE:-/etc/ppsvf-app/ppsvf-app.env}"
 SKIP_PUBLIC=0
 NETRC_FILE=""
 ROLE_USER=""
@@ -126,7 +126,7 @@ recovery_parent_owner="$(stat -c '%U:%G' "${PPSV_DATA_ROOT}/pre_restore" 2>/dev/
 
 active_app="$(readlink -f "${PPSV_CURRENT_LINK}" 2>/dev/null || true)"
 case "${active_app}" in
-  "${PPSV_RELEASES_ROOT}"/*/ppsv-app) pass "active application points into immutable releases" ;;
+  "${PPSV_RELEASES_ROOT}"/*/ppsvf-app) pass "active application points into immutable releases" ;;
   *) fail "active application link is missing or outside ${PPSV_RELEASES_ROOT}: ${active_app:-<none>}" ;;
 esac
 
@@ -176,10 +176,10 @@ else
   pass "port 3838 is not exposed on a wildcard address"
 fi
 
-local_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 http://127.0.0.1:3838/ppsv-app/ || true)"
+local_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 http://127.0.0.1:3838/ppsvf-app/ || true)"
 [[ "${local_status}" =~ ^(2|3)[0-9][0-9]$ ]] && pass "loopback application returned ${local_status}" || fail "loopback application returned ${local_status:-no response}"
 
-if ps -eo user=,args= | awk -v user="${APP_RUN_USER}" '$1 == user && /[Rr].*ppsv-app/ {found=1} END {exit !found}'; then
+if ps -eo user=,args= | awk -v user="${APP_RUN_USER}" '$1 == user && /[Rr].*ppsvf-app/ {found=1} END {exit !found}'; then
   pass "application R worker runs as ${APP_RUN_USER}"
 else
   fail "no PPSV R worker owned by ${APP_RUN_USER} was observed"
@@ -337,7 +337,7 @@ systemctl is-active --quiet ppsv-mail-outbox.timer && pass "mail-outbox timer is
 systemctl is-active --quiet ppsv-backup.timer && pass "backup timer is active" || fail "backup timer is not active"
 
 if ((SKIP_PUBLIC == 0)); then
-  [[ "${PPSV_PUBLIC_URL}" == 'https://ppcf-vm.biochem.mpg.de/ppsv-app/' ]] && pass "public URL is the canonical PPSV endpoint" || fail "PPSV_PUBLIC_URL is not the canonical endpoint: ${PPSV_PUBLIC_URL}"
+  [[ "${PPSV_PUBLIC_URL}" == 'https://ppcf-vm.biochem.mpg.de/ppsvf-app/' ]] && pass "public URL is the canonical PPSV endpoint" || fail "PPSV_PUBLIC_URL is not the canonical endpoint: ${PPSV_PUBLIC_URL}"
   http_headers="$(curl --silent --show-error --head --max-time 15 http://ppcf-vm.biochem.mpg.de/ || true)"
   if grep -Eq '^HTTP/[^ ]+ (301|308)' <<<"${http_headers}" && grep -Eiq '^location: https://ppcf-vm\.biochem\.mpg\.de/' <<<"${http_headers}"; then
     pass "HTTP redirects to the canonical HTTPS host"
@@ -346,13 +346,13 @@ if ((SKIP_PUBLIC == 0)); then
   fi
 
   https_root_headers="$(curl --silent --show-error --head --max-time 15 https://ppcf-vm.biochem.mpg.de/ || true)"
-  if grep -Eq '^HTTP/[^ ]+ 30[1278]' <<<"${https_root_headers}" && grep -Eiq '^location: (/ppsv-app/|https://ppcf-vm\.biochem\.mpg\.de/ppsv-app/)' <<<"${https_root_headers}"; then
-    pass "HTTPS root redirects to /ppsv-app/ with trusted CA and hostname validation"
+  if grep -Eq '^HTTP/[^ ]+ 30[1278]' <<<"${https_root_headers}" && grep -Eiq '^location: (/ppsvf-app/|https://ppcf-vm\.biochem\.mpg\.de/ppsvf-app/)' <<<"${https_root_headers}"; then
+    pass "HTTPS root redirects to /ppsvf-app/ with trusted CA and hostname validation"
   else
-    fail "HTTPS root did not produce the canonical /ppsv-app/ redirect"
+    fail "HTTPS root did not produce the canonical /ppsvf-app/ redirect"
   fi
 
-  unauth_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 -H 'X-Remote-User: forged-admin' https://ppcf-vm.biochem.mpg.de/ppsv-app/ || true)"
+  unauth_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 15 -H 'X-Remote-User: forged-admin' https://ppcf-vm.biochem.mpg.de/ppsvf-app/ || true)"
   [[ "${unauth_status}" == 401 ]] && pass "forged identity header without LDAP credentials is rejected" || fail "forged unauthenticated request returned ${unauth_status:-no response}, expected 401"
 
   unauth_websocket_status="$(curl --http1.1 --silent --output /dev/null --write-out '%{http_code}' --max-time 8 \
@@ -363,15 +363,15 @@ if ((SKIP_PUBLIC == 0)); then
     -H 'Sec-WebSocket-Protocol: shiny' \
     -H 'Origin: https://ppcf-vm.biochem.mpg.de' \
     -H 'X-Remote-User: forged-admin' \
-    https://ppcf-vm.biochem.mpg.de/ppsv-app/websocket/ || true)"
+    https://ppcf-vm.biochem.mpg.de/ppsvf-app/websocket/ || true)"
   [[ "${unauth_websocket_status}" == 401 ]] && pass "unauthenticated WebSocket upgrade is rejected by LDAP" || fail "unauthenticated WebSocket upgrade returned ${unauth_websocket_status:-no response}, expected 401"
 
   if [[ -n "${NETRC_FILE}" ]]; then
     [[ -f "${NETRC_FILE}" && ! -L "${NETRC_FILE}" ]] || die "Netrc file must be a regular, non-symlink file: ${NETRC_FILE}"
     [[ "$(stat -c '%a' "${NETRC_FILE}")" == 600 ]] || die "LDAP test netrc must have mode 0600."
-    auth_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --netrc-file "${NETRC_FILE}" https://ppcf-vm.biochem.mpg.de/ppsv-app/ || true)"
+    auth_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --netrc-file "${NETRC_FILE}" https://ppcf-vm.biochem.mpg.de/ppsvf-app/ || true)"
     [[ "${auth_status}" =~ ^(2|3)[0-9][0-9]$ ]] && pass "LDAP-authenticated application route returned ${auth_status}" || fail "LDAP-authenticated route returned ${auth_status:-no response}"
-    spoof_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --netrc-file "${NETRC_FILE}" -H 'X-Remote-User: forged-admin' https://ppcf-vm.biochem.mpg.de/ppsv-app/ || true)"
+    spoof_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --netrc-file "${NETRC_FILE}" -H 'X-Remote-User: forged-admin' https://ppcf-vm.biochem.mpg.de/ppsvf-app/ || true)"
     [[ "${spoof_status}" =~ ^(2|3)[0-9][0-9]$ ]] && pass "authenticated request survives replacement of a forged identity header" || fail "authenticated spoof test returned ${spoof_status:-no response}"
     websocket_status="$(curl --http1.1 --silent --output /dev/null --write-out '%{http_code}' --max-time 8 --netrc-file "${NETRC_FILE}" \
       -H 'Connection: Upgrade' \
@@ -381,7 +381,7 @@ if ((SKIP_PUBLIC == 0)); then
       -H 'Sec-WebSocket-Protocol: shiny' \
       -H 'Origin: https://ppcf-vm.biochem.mpg.de' \
       -H 'X-Remote-User: forged-admin' \
-      https://ppcf-vm.biochem.mpg.de/ppsv-app/websocket/ || true)"
+      https://ppcf-vm.biochem.mpg.de/ppsvf-app/websocket/ || true)"
     [[ "${websocket_status}" == 101 ]] && pass "authenticated WebSocket upgrade succeeds after forged identity replacement" || fail "authenticated WebSocket upgrade returned ${websocket_status:-no response}, expected 101"
     forged_rows="$(runuser -u "${APP_RUN_USER}" -- sqlite3 "${PPSV_DB_FILE}" "SELECT count(*) FROM users WHERE lower(username)='forged-admin';" 2>/dev/null || true)"
     [[ "${forged_rows}" == 0 ]] && pass "forged identity was not synchronized into the user directory" || fail "forged-admin unexpectedly exists in the user directory"

@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib.sh
 source "${SCRIPT_DIR}/lib.sh"
-load_runtime_env "${PPSV_ENV_FILE:-/etc/ppsv-app/ppsv-app.env}"
+load_runtime_env "${PPSV_ENV_FILE:-/etc/ppsvf-app/ppsvf-app.env}"
 validate_runtime_paths
 
 if [[ "$(id -un)" != "${APP_RUN_USER}" ]]; then

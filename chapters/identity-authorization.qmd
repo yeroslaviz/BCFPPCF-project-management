@@ -6,7 +6,7 @@ execute:
 
 ## Production identity flow
 
-Apache performs LDAP authentication before proxying `/ppsv-app/`. At virtual
+Apache performs LDAP authentication before proxying `/ppsvf-app/`. At virtual
 host scope it removes all client-controlled identity headers, including
 `X-Remote-User`, name, email, group, and phone variants. Inside the protected
 location it injects values obtained from the successful LDAP request:

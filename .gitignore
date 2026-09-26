@@ -23,7 +23,7 @@ renv/staging/
 .Renviron
 .env
 *.env
-!scripts/ppsv-app.env.example
+!scripts/ppsvf-app.env.example
 
 # Runtime databases, mail queues, uploads, logs, and backups
 *.db

@@ -27,7 +27,7 @@ assumption or a successful local unit test.
 From a clean checkout with locked dependencies restored:
 
 ```bash
-Rscript -e 'renv::restore(project = "ppsv-app", prompt = FALSE)'
+Rscript -e 'renv::restore(project = "ppsvf-app", prompt = FALSE)'
 Rscript tests/testthat.R
 bash -n scripts/*.sh deploy.sh
 ```
@@ -72,10 +72,10 @@ facility pool matches `PPSV_POOL_EXPECTED_SOURCE`.
 
 - [ ] `curl -I http://ppcf-vm.biochem.mpg.de/` redirects to canonical HTTPS.
 - [ ] `curl -I https://ppcf-vm.biochem.mpg.de/` validates the CA/chain and
-  redirects to `/ppsv-app/`.
+  redirects to `/ppsvf-app/`.
 - [ ] The presented certificate SAN covers `ppcf-vm.biochem.mpg.de`, is not
   near expiry, and matches the installed private key.
-- [ ] An unauthenticated `/ppsv-app/` request receives the expected LDAP
+- [ ] An unauthenticated `/ppsvf-app/` request receives the expected LDAP
   challenge.
 - [ ] `ss -ltnp` shows port 3838 only on `127.0.0.1` (or loopback equivalent),
   never `0.0.0.0`, `[::]`, or an external address.
