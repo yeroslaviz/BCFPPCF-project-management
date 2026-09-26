@@ -73,8 +73,7 @@ active key manually.
 ## Idempotent provisioning
 
 Create the operator environment from the tracked sample and fill all required
-values. A temporary root-owned, mode-`0600` source is safe before the private
-runtime group exists:
+values. A temporary root-owned, mode-`0600` source is safe before provisioning:
 
 ```bash
 sudo install -o root -g root -m 0600 \
@@ -84,10 +83,10 @@ sudo scripts/provision.sh --env /root/ppsvf-app.env --install-system
 ```
 
 Provisioning installs the final environment at
-`/etc/ppsvf-app/ppsvf-app.env`, root-owned with group `ppsvf-shiny` and mode
-`0640`. It creates or validates:
+`/etc/ppsvf-app/ppsvf-app.env`, root-owned with mode `0600`. It creates or
+validates:
 
-- runtime user `ppsvf-shiny-user` and private primary group `ppsvf-shiny`;
+- runtime user `ppsvf-shiny-user` with primary group `b_profa`;
 - immutable-release, persistent-data, fallback, lock, deployment-record, and
   renv-cache directories;
 - project-pool setgid/default ACL access for the service account and
@@ -98,7 +97,8 @@ Provisioning installs the final environment at
 - systemd units for the mail worker, backup, and pool reconciliation.
 
 It refuses production values other than `AUTH_MODE=ldap`, the canonical public
-URL, the private runtime identity, and `b_profa` as the pool ACL group.
+URL, `ppsvf-shiny-user` as the runtime identity, and `b_profa` as the runtime
+and pool group.
 
 ## Apache and Shiny behavior
 
@@ -212,7 +212,7 @@ compatibility and explicitly accepting loss of newer state.
 ## Configuration changes
 
 Edit `/etc/ppsvf-app/ppsvf-app.env` with `sudoedit`, preserve root ownership and
-mode `0640` or stricter, and run the relevant validation before restarting
+mode `0600`, and run the relevant validation before restarting
 services. For TLS, identity, path, user, or Apache changes, rerun provisioning
 rather than applying ad hoc edits. For mail-mode changes, complete the decision
 test in [Mail and storage operations](mail-storage.qmd) and retain its evidence.

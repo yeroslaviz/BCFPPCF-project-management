@@ -7,7 +7,7 @@ ConditionPathExists=/srv/shiny-server/ppsvf-app/process_mail_outbox.R
 [Service]
 Type=oneshot
 User=ppsvf-shiny-user
-Group=ppsvf-shiny
+Group=b_profa
 EnvironmentFile=/etc/ppsvf-app/ppsvf-app.env
 Environment=PPSV_ENV_PRELOADED=1
 WorkingDirectory=/srv/shiny-server/ppsvf-app

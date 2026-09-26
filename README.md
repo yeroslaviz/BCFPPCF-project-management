@@ -100,7 +100,7 @@ by the application repository itself.
    requester/auto-reply test, and an external backup destination plus facility
    pool-snapshot policy.
 2. Create a root-owned environment file from
-   `scripts/ppsvf-app.env.example`; mode must be `0640` or stricter.
+   `scripts/ppsvf-app.env.example`; mode must be `0600`.
 3. Install a reviewed Shiny Server package with
    `scripts/install_shiny_server.sh --env /root/ppsvf-app.env --deb ...`; the
    template pins the independently reviewed SHA-256 checksum.

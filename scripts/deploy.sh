@@ -62,7 +62,7 @@ SOURCE_APP="${SOURCE_ROOT}/ppsvf-app"
 ) || die "renv.lock does not match its reviewed SHA-256 sidecar."
 
 getent passwd "${APP_RUN_USER}" >/dev/null || die "Runtime account does not exist: ${APP_RUN_USER}"
-[[ "$(id -gn "${APP_RUN_USER}")" == "${APP_RUN_GROUP}" ]] || die "Runtime account does not use private primary group ${APP_RUN_GROUP}."
+[[ "$(id -gn "${APP_RUN_USER}")" == "${APP_RUN_GROUP}" ]] || die "Runtime account does not use group ${APP_RUN_GROUP}."
 validate_pool_destination
 runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_POOL_ROOT}" || die "Runtime account cannot write the project pool."
 runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_FALLBACK_ROOT}" || die "Runtime account cannot write fallback storage."

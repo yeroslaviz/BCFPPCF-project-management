@@ -37,8 +37,9 @@ load_runtime_env "${ENV_FILE}"
 validate_runtime_paths
 
 [[ "${APP_RUN_USER}" == ppsvf-shiny-user ]] || die "Production APP_RUN_USER must be ppsvf-shiny-user."
-[[ "${APP_RUN_GROUP}" == ppsvf-shiny ]] || die "Production APP_RUN_GROUP must be the private group ppsvf-shiny."
+[[ "${APP_RUN_GROUP}" == b_profa ]] || die "Production APP_RUN_GROUP must be b_profa."
 [[ "${PPSV_POOL_GROUP}" == b_profa ]] || die "Production PPSV_POOL_GROUP must be b_profa."
+[[ "${APP_RUN_GROUP}" == "${PPSV_POOL_GROUP}" ]] || die "APP_RUN_GROUP and PPSV_POOL_GROUP must both be b_profa."
 [[ "${AUTH_MODE:-}" == ldap ]] || die "Production AUTH_MODE must be ldap."
 [[ "${PPSV_PUBLIC_URL}" == https://ppcf-vm.biochem.mpg.de/ppsvf-app/ ]] || die "Unexpected PPSV_PUBLIC_URL: ${PPSV_PUBLIC_URL}"
 
@@ -181,23 +182,20 @@ done
 [[ -L /etc/apache2/sites-enabled/000-default.conf ]] && default_http_was_enabled=1
 [[ -L /etc/apache2/sites-enabled/default-ssl.conf ]] && default_ssl_was_enabled=1
 
-if ! getent group "${APP_RUN_GROUP}" >/dev/null; then
-  groupadd --system "${APP_RUN_GROUP}"
-fi
+getent group "${APP_RUN_GROUP}" >/dev/null || die "Required runtime/pool group does not exist: ${APP_RUN_GROUP}"
 if ! getent passwd "${APP_RUN_USER}" >/dev/null; then
   useradd --system --gid "${APP_RUN_GROUP}" --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "${APP_RUN_USER}"
 fi
 actual_primary_group="$(id -gn "${APP_RUN_USER}")"
-[[ "${actual_primary_group}" == "${APP_RUN_GROUP}" ]] || die "${APP_RUN_USER} primary group is ${actual_primary_group}; expected private group ${APP_RUN_GROUP}."
-getent group "${PPSV_POOL_GROUP}" >/dev/null || die "Required pool group does not exist: ${PPSV_POOL_GROUP}"
+[[ "${actual_primary_group}" == "${APP_RUN_GROUP}" ]] || die "${APP_RUN_USER} primary group is ${actual_primary_group}; expected ${APP_RUN_GROUP}."
 
 config_started=1
 install -d -o root -g "${APP_RUN_GROUP}" -m 0750 /etc/ppsvf-app
 if [[ "$(readlink -f "${ENV_FILE}")" != /etc/ppsvf-app/ppsvf-app.env ]]; then
-  install -o root -g "${APP_RUN_GROUP}" -m 0640 "${ENV_FILE}" /etc/ppsvf-app/ppsvf-app.env
+  install -o root -g root -m 0600 "${ENV_FILE}" /etc/ppsvf-app/ppsvf-app.env
 else
-  chown root:"${APP_RUN_GROUP}" /etc/ppsvf-app/ppsvf-app.env
-  chmod 0640 /etc/ppsvf-app/ppsvf-app.env
+  chown root:root /etc/ppsvf-app/ppsvf-app.env
+  chmod 0600 /etc/ppsvf-app/ppsvf-app.env
 fi
 
 install -d -o root -g "${APP_RUN_GROUP}" -m 0750 "${PPSV_RELEASES_ROOT}"

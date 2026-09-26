@@ -39,9 +39,9 @@ trusted.
 | `technician` | `grzejszc`, `pleyer`, `valer`, `wehner`, `yaoxiao`, `piroddi` |
 | `user` | Every other active LDAP user |
 
-The `b_profa` group is used only for the project-pool ACL. Membership never
-grants technician or administrator privileges in the application. There is no
-role editor.
+The `b_profa` group is used for runtime and project-pool filesystem access.
+Membership never grants technician or administrator privileges in the
+application. There is no role editor.
 
 ## Permission matrix
 

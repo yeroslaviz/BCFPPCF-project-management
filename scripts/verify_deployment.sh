@@ -76,7 +76,7 @@ fail() { printf '[FAIL] %s\n' "$*" >&2; failures=$((failures + 1)); }
 
 [[ "${AUTH_MODE:-}" == ldap ]] && pass "AUTH_MODE is ldap" || fail "AUTH_MODE must be ldap"
 runtime_primary_group="$(id -gn "${APP_RUN_USER}" 2>/dev/null || true)"
-[[ "${runtime_primary_group}" == "${APP_RUN_GROUP}" && "${runtime_primary_group}" != "${PPSV_POOL_GROUP}" ]] && pass "runtime account uses private primary group ${APP_RUN_GROUP}" || fail "runtime primary group is ${runtime_primary_group:-missing}, expected private ${APP_RUN_GROUP} distinct from ${PPSV_POOL_GROUP}"
+[[ "${runtime_primary_group}" == "${APP_RUN_GROUP}" && "${APP_RUN_GROUP}" == "${PPSV_POOL_GROUP}" ]] && pass "runtime account uses shared group ${APP_RUN_GROUP}" || fail "runtime primary group is ${runtime_primary_group:-missing}, expected ${APP_RUN_GROUP}; APP_RUN_GROUP/PPSV_POOL_GROUP are ${APP_RUN_GROUP}/${PPSV_POOL_GROUP}"
 [[ "${PPSV_TICKET_MODE:-disabled}" != disabled ]] && pass "ticket delivery is enabled in ${PPSV_TICKET_MODE} mode" || fail "ticket delivery is disabled"
 [[ "${PPSV_MAIL_FROM:-}" == ppsv-service@biochem.mpg.de ]] && pass "SMTP service identity is ppsv-service@biochem.mpg.de" || fail "PPSV_MAIL_FROM is not the approved service identity"
 [[ "${PPSV_TICKET_TO:-}" == ppsv-request@biochem.mpg.de ]] && pass "ticket recipient is ppsv-request@biochem.mpg.de" || fail "PPSV_TICKET_TO is not the PPSV request address"
@@ -86,10 +86,10 @@ runtime_primary_group="$(id -gn "${APP_RUN_USER}" 2>/dev/null || true)"
 env_mode="$(stat -c '%a' "${ENV_FILE}")"
 env_owner="$(stat -c '%U:%G' "${ENV_FILE}")"
 env_mode_value=$((8#${env_mode}))
-if [[ "${env_owner}" == "root:${APP_RUN_GROUP}" ]] && (( (env_mode_value & 8#0037) == 0 )); then
-  pass "runtime environment is root:${APP_RUN_GROUP} mode ${env_mode} (0640 or stricter)"
+if [[ "${env_owner}" == "root:root" ]] && (( (env_mode_value & 8#0077) == 0 )); then
+  pass "runtime environment is root:root mode ${env_mode} (0600 or stricter)"
 else
-  fail "runtime environment is ${env_owner} mode ${env_mode}, expected root:${APP_RUN_GROUP} and mode 0640 or stricter"
+  fail "runtime environment is ${env_owner} mode ${env_mode}, expected root:root and mode 0600 or stricter"
 fi
 
 check_protected_dir() {
@@ -275,7 +275,7 @@ pool_root_group="$(stat -c '%G' "${PPSV_POOL_ROOT}" 2>/dev/null || true)"
 [[ "${pool_root_mode}" == 2770 && "${pool_root_group}" == "${PPSV_POOL_GROUP}" ]] && pass "project pool root is mode 2770 group ${PPSV_POOL_GROUP}" || fail "project pool root is mode ${pool_root_mode:-missing} group ${pool_root_group:-missing}"
 fallback_root_mode="$(stat -c '%a' "${PPSV_FALLBACK_ROOT}" 2>/dev/null || true)"
 fallback_root_owner="$(stat -c '%U:%G' "${PPSV_FALLBACK_ROOT}" 2>/dev/null || true)"
-[[ "${fallback_root_mode}" == 2770 && "${fallback_root_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" ]] && pass "fallback root is service-private mode 2770" || fail "fallback root is ${fallback_root_owner:-missing} mode ${fallback_root_mode:-missing}"
+[[ "${fallback_root_mode}" == 2770 && "${fallback_root_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" ]] && pass "fallback root is runtime-owned mode 2770" || fail "fallback root is ${fallback_root_owner:-missing} mode ${fallback_root_mode:-missing}"
 
 pool_acl="$(getfacl -cp "${PPSV_POOL_ROOT}" 2>/dev/null || true)"
 grep -Fqx "user:${APP_RUN_USER}:rwx" <<<"${pool_acl}" && pass "project pool grants the runtime user rwx ACL" || fail "project pool runtime-user ACL is missing"

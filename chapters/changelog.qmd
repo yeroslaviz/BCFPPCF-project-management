@@ -24,6 +24,15 @@ snapshot policy.
 
 ## Latest repository changes
 
+### 09-26-2026
+
+- change the app name from ppsv-app to ppsvf-aap
+- change group membership of ppsvf-shiny-user to the PPSVF group.
+- add github synchronisation instructions
+- 
+
+### 09-25-2026
+
 - Added PPSV-specific Shiny modules, database schema, validation, PDF export,
   mail outbox, file storage, authorization, and admin views.
 - Added idempotent provisioning, deployment, rollback, verification, backup,

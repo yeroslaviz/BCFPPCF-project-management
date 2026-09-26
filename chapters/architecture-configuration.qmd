@@ -60,8 +60,8 @@ may be replaced or rolled back without touching mutable state.
 ## Runtime configuration
 
 The tracked `scripts/ppsvf-app.env.example` documents the interface. The real
-file is `/etc/ppsvf-app/ppsvf-app.env`, root-owned, not a symlink, and mode `0640`
-or stricter.
+file is `/etc/ppsvf-app/ppsvf-app.env`, root-owned, not a symlink, and mode
+`0600`.
 
 | Variable | Meaning |
 |---|---|
@@ -90,8 +90,8 @@ does not pretend that ticket delivery succeeded.
 | Variable | Required value or rule |
 |---|---|
 | `APP_RUN_USER` | `ppsvf-shiny-user` |
-| `APP_RUN_GROUP` | Private primary group `ppsvf-shiny`, distinct from `b_profa` |
-| `PPSV_POOL_GROUP` | `b_profa`, used only for project-pool access |
+| `APP_RUN_GROUP` | `b_profa` |
+| `PPSV_POOL_GROUP` | `b_profa` |
 | `TLS_CERT_FILE` | Absolute path to the leaf certificate |
 | `TLS_BUNDLE_FILE` | Absolute path to the leaf-first certificate chain |
 | `TLS_KEY_FILE` | Mandatory exact matching private key; never guessed |
@@ -137,9 +137,9 @@ supported, stop instead of proceeding partially.
 
 ## File ownership and ACLs
 
-The application runs as `ppsvf-shiny-user` with private primary group
-`ppsvf-shiny`. The `b_profa` group grants people access to the project pool; it
-does not grant application roles.
+The application runs as `ppsvf-shiny-user` with primary group `b_profa`. This
+matches the technician pool-access group, but it does not grant application
+roles; roles still come only from the PPSV allowlist and active user records.
 
 Pool and fallback request directories use mode `2770`; stored files use
 `0660`. The pool root receives access and default ACLs for the service user and

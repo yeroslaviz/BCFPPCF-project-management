@@ -73,7 +73,7 @@ Production invariants are:
 AUTH_MODE=ldap
 PPSV_PUBLIC_URL=https://ppcf-vm.biochem.mpg.de/ppsvf-app/
 APP_RUN_USER=ppsvf-shiny-user
-APP_RUN_GROUP=ppsvf-shiny
+APP_RUN_GROUP=b_profa
 PPSV_POOL_GROUP=b_profa
 PPSV_DB_FILE=/srv/ppsvf-app-data/ppsv_projects.db
 PPSV_POOL_ROOT=/fs/pool/pool-ppsvf-projects
@@ -84,7 +84,7 @@ PPSV_ALLOW_LOCAL_POOL=0
 
 Never put SMTP credentials or another secret in the repository or in an
 application-local `.Renviron`. Provisioning installs the environment as
-`/etc/ppsvf-app/ppsvf-app.env`, owned by root and mode `0640` or stricter.
+`/etc/ppsvf-app/ppsvf-app.env`, owned by root and mode `0600`.
 
 Record both external mount sources exactly:
 

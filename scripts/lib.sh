@@ -48,7 +48,7 @@ load_runtime_env() {
   env_mode="$(stat -c '%a' "${requested_file}")"
   [[ "${env_owner}" == 0 ]] || die "Runtime environment file must be owned by root: ${requested_file}"
   env_mode_value=$((8#${env_mode}))
-  (( (env_mode_value & 8#0037) == 0 )) || die "Runtime environment file must be mode 0640 or stricter (no group write/execute or other access): ${requested_file}"
+  (( (env_mode_value & 8#0077) == 0 )) || die "Runtime environment file must be mode 0600 or stricter (no group or other access): ${requested_file}"
 
   if [[ -r "${requested_file}" ]]; then
     set -a
@@ -65,7 +65,7 @@ load_runtime_env() {
 
   export PPSV_ENV_FILE="${requested_file}"
   export APP_RUN_USER="${APP_RUN_USER:-ppsvf-shiny-user}"
-  export APP_RUN_GROUP="${APP_RUN_GROUP:-ppsvf-shiny}"
+  export APP_RUN_GROUP="${APP_RUN_GROUP:-b_profa}"
   export PPSV_POOL_GROUP="${PPSV_POOL_GROUP:-b_profa}"
   export PPSV_RELEASES_ROOT="${PPSV_RELEASES_ROOT:-/srv/ppsvf-app/releases}"
   export PPSV_DATA_ROOT="${PPSV_DATA_ROOT:-/srv/ppsvf-app-data}"
