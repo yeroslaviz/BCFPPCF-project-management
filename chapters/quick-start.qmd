@@ -10,11 +10,9 @@ that VM-side readiness gates have passed.
 
 ## Sync the reviewed repository to the VM
 
-The first operator action is to place the reviewed repository state on the
-server. This has not been done by the repository delivery itself.
-
-The intended VM workflow is the same source-checkout pattern used for the
-BCFMS system: keep the Git repository in the operator home area and update it
+The first step is to synchronize the repository with the
+server. The intended VM workflow is the same source-checkout pattern used for the
+BCFMS system. We keep the Git repository in the the home folder and update it
 there before deploying.
 
 ```bash
@@ -45,6 +43,18 @@ where the proof is recorded:
 
 1. The exact TLS private key matching the leaf certificate for
    `ppcf-vm.biochem.mpg.de` is available. A CSR is not a private key.
+
+```bash
+openssl x509 -noout -modulus -in harica-cert.pem | openssl sha256
+openssl rsa -noout -modulus -in private-key.pem | openssl sha256
+```
+   These two hashes should be identical. 
+   We now have these three files
+
+   - the private key (-----BEGIN PRIVATE KEY-----): generated locally before the HARICA request; secret; keep it protected. 
+   - the CSR (-----BEGIN CERTIFICATE REQUEST-----): created from that private key and sent to HARICA.
+   - the HARICA PEM certificate: sent back by HARICA; public certificate, often plus chain/intermediate certificates.
+
 2. The SMTP administrators have authorized
    `ppsv-service@biochem.mpg.de` for the configured relay account.
 3. A real ticket test has established which requester/auto-reply path works
