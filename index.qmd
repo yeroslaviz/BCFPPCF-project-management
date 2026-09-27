@@ -6,10 +6,7 @@ This protocol documents the management system for the Protein Production
 and Structural Validation Facility (PPSV) at the Max Planck Institute of
 Biochemistry.
 
-The production application exists at
-`https://ppcf-vm.biochem.mpg.de/ppsvf-app/`. For facility questions, contact
-[ppsv-request@biochem.mpg.de](mailto:ppsv-request@biochem.mpg.de) or
-+49 89 8578-3629. for help with the system contact [omicsdesk@biochem.mpg.de](mailto:omicsdesk@biochem.mpg.de)
+The production application lives at `https://ppcf-vm.biochem.mpg.de/ppsvf-app/`. For facility questions, contact [ppsv-request@biochem.mpg.de](mailto:ppsv-request@biochem.mpg.de) or +49 89 8578-3629. for help with the system contact [omicsdesk@biochem.mpg.de](mailto:omicsdesk@biochem.mpg.de)
 
 ## Scope
 

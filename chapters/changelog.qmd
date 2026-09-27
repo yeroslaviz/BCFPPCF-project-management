@@ -4,7 +4,7 @@ title: "Change Log"
 
 ## Summary so far
 
-As of 2026-09-26, the copied BCFMS/MS codebase has been replaced by a PPSV
+As of 2026-09, the copied BCFMS/MS codebase has been replaced by a PPSV
 repository delivery. The new app is branded for PPSV, starts from a fresh
 database, uses the PPSV service modules and inquiry flow, stores requests with
 the shared `PPSV000001` sequence, records the required status/history/mail/file
@@ -29,7 +29,7 @@ snapshot policy.
 - change the app name from ppsv-app to ppsvf-aap
 - change group membership of ppsvf-shiny-user to the PPSVF group.
 - add github synchronisation instructions
-- 
+- clone repo to github
 
 ### 09-25-2026
 

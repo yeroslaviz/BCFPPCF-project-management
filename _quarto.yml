@@ -5,7 +5,7 @@ project:
 book:
   title: "PPSV Project Management System"
   subtitle: "Operator and developer guide"
-  author: "Protein Production and Structural Validation Facility"
+  author: "[A. Yeroslaviz](mailto:omicsdeks@biochem.mpg.de), Bioinformatics core facility"
   chapters:
     - index.qmd
     - chapters/quick-start.qmd
