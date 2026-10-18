@@ -189,7 +189,7 @@ systemctl stop ppsv-backup.timer ppsv-mail-outbox.timer ppsv-mail-outbox.service
 if [[ -f "${PPSV_DB_FILE}" ]]; then
   (
     cd "${app_dir}"
-    Rscript "${SCRIPT_DIR}/backup_database.R" "${PPSV_DB_FILE}" "${recovery_dir}/database.sqlite"
+    "${PPSV_R_BIN}/Rscript" "${SCRIPT_DIR}/backup_database.R" "${PPSV_DB_FILE}" "${recovery_dir}/database.sqlite"
   )
   chown root:root "${recovery_dir}/database.sqlite"
   chmod 0600 "${recovery_dir}/database.sqlite"
@@ -215,7 +215,7 @@ verify_sqlite_backup "${PPSV_DB_FILE}"
 (
   cd "${app_dir}"
   run_as_app env PPSV_DB_FILE="${PPSV_DB_FILE}" AUTH_MODE=ldap PPSV_RESET_DB=0 \
-    RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" Rscript setup_database.R
+    RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" "${PPSV_R_BIN}/Rscript" setup_database.R
 )
 restored_schema_version="$(sqlite3 "${PPSV_DB_FILE}" 'SELECT COALESCE(MAX(version),0) FROM schema_migrations;')"
 [[ "${restored_schema_version}" == 4 ]] || die "Restored database did not migrate to current schema version 4."

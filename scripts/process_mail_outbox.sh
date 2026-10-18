@@ -19,4 +19,4 @@ APP_DIR="$(validate_active_app_dir)"
 
 cd "${APP_DIR}"
 log "Processing due mail-outbox records."
-run_as_app Rscript process_mail_outbox.R
+run_as_app "${PPSV_R_BIN}/Rscript" process_mail_outbox.R

@@ -55,7 +55,7 @@ if [[ -f "${PPSV_DB_FILE}" ]]; then
   db_partial="${db_final}.partial.$$"
   (
     cd "${app_dir}"
-    Rscript "${SCRIPT_DIR}/backup_database.R" "${PPSV_DB_FILE}" "${db_partial}"
+    "${PPSV_R_BIN}/Rscript" "${SCRIPT_DIR}/backup_database.R" "${PPSV_DB_FILE}" "${db_partial}"
   )
   verify_sqlite_backup "${db_partial}"
   mv "${db_partial}" "${db_final}"

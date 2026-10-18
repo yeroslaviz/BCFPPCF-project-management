@@ -76,6 +76,10 @@ pass() { printf '[PASS] %s\n' "$*"; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; failures=$((failures + 1)); }
 
 [[ "${AUTH_MODE:-}" == ldap ]] && pass "AUTH_MODE is ldap" || fail "AUTH_MODE must be ldap"
+runtime_r_version="$("${PPSV_R_BIN}/Rscript" --vanilla -e 'cat(as.character(getRversion()))' 2>/dev/null || true)"
+[[ "${runtime_r_version}" == 4.6.1 ]] && pass "PPSV Rscript is 4.6.1 at ${PPSV_R_BIN}" || fail "PPSV Rscript is ${runtime_r_version:-unavailable}, expected 4.6.1"
+shiny_environment="$(systemctl show shiny-server.service --property=Environment --value 2>/dev/null || true)"
+[[ " ${shiny_environment} " == *" R=${PPSV_R_BIN}/R "* ]] && pass "Shiny Server selects PPSV R 4.6.1" || fail "Shiny Server does not select ${PPSV_R_BIN}/R"
 runtime_primary_group="$(id -gn "${APP_RUN_USER}" 2>/dev/null || true)"
 [[ "${runtime_primary_group}" == "${APP_RUN_GROUP}" && "${APP_RUN_GROUP}" == "${PPSV_POOL_GROUP}" ]] && pass "runtime account uses shared group ${APP_RUN_GROUP}" || fail "runtime primary group is ${runtime_primary_group:-missing}, expected ${APP_RUN_GROUP}; APP_RUN_GROUP/PPSV_POOL_GROUP are ${APP_RUN_GROUP}/${PPSV_POOL_GROUP}"
 if [[ "${PPSV_TICKET_MODE:-disabled}" != disabled ]]; then
@@ -240,7 +244,7 @@ fi
 expected_statuses='Submitted|Under review|Accepted|In progress|Awaiting requester input|Completed|Closed'
 actual_statuses="$(
   cd "${active_app}" 2>/dev/null &&
-    runuser -u "${APP_RUN_USER}" -- Rscript -e 'source("R/load_backend.R"); cat(paste(PPSV_STATUS_OPTIONS, collapse="|"))' 2>/dev/null
+    runuser -u "${APP_RUN_USER}" -- "${PPSV_R_BIN}/Rscript" -e 'source("R/load_backend.R"); cat(paste(PPSV_STATUS_OPTIONS, collapse="|"))' 2>/dev/null
   )" || actual_statuses=""
 [[ "${actual_statuses}" == "${expected_statuses}" ]] && pass "application exposes exactly the seven approved statuses" || fail "application status set/order is unexpected: ${actual_statuses:-unavailable}"
 
@@ -251,7 +255,7 @@ check_role() {
   [[ "${username}" =~ ^[A-Za-z0-9._-]+$ ]] || { fail "unsafe or empty username supplied for ${expected} role check"; return; }
   actual="$(
     cd "${active_app}" 2>/dev/null &&
-      runuser -u "${APP_RUN_USER}" -- Rscript -e 'source("R/load_backend.R"); cat(ppsv_role_for_username(commandArgs(trailingOnly=TRUE)[[1L]]))' "${username}" 2>/dev/null
+      runuser -u "${APP_RUN_USER}" -- "${PPSV_R_BIN}/Rscript" -e 'source("R/load_backend.R"); cat(ppsv_role_for_username(commandArgs(trailingOnly=TRUE)[[1L]]))' "${username}" 2>/dev/null
     )" || actual=""
   active_count="$(runuser -u "${APP_RUN_USER}" -- sqlite3 "${PPSV_DB_FILE}" "SELECT count(*) FROM users WHERE lower(username)=lower('${username}') AND active=1;" 2>/dev/null || true)"
   if [[ "${actual}" == "${expected}" && "${active_count}" == 1 ]]; then

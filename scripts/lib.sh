@@ -70,6 +70,7 @@ load_runtime_env() {
   export PPSV_RELEASES_ROOT="${PPSV_RELEASES_ROOT:-/srv/ppsvf-app/releases}"
   export PPSV_DATA_ROOT="${PPSV_DATA_ROOT:-/srv/ppsv-app-data}"
   export PPSV_CURRENT_LINK="${PPSV_CURRENT_LINK:-/srv/shiny-server/ppsvf-app}"
+  export PPSV_R_BIN="${PPSV_R_BIN:-/opt/R/4.6.1/bin}"
   export PPSV_DB_FILE="${PPSV_DB_FILE:-${PPSV_DATA_ROOT}/database/ppsv_projects.db}"
   export PPSV_POOL_ROOT="${PPSV_POOL_ROOT:-/fs/pool/pool-ppsvf-projects}"
   export PPSV_FALLBACK_ROOT="${PPSV_FALLBACK_ROOT:-${PPSV_DATA_ROOT}/uploads_pending_pool}"
@@ -104,6 +105,7 @@ validate_runtime_paths() {
   require_absolute_path PPSV_RELEASES_ROOT "${PPSV_RELEASES_ROOT}"
   require_absolute_path PPSV_DATA_ROOT "${PPSV_DATA_ROOT}"
   require_absolute_path PPSV_CURRENT_LINK "${PPSV_CURRENT_LINK}"
+  require_absolute_path PPSV_R_BIN "${PPSV_R_BIN}"
   require_absolute_path PPSV_DB_FILE "${PPSV_DB_FILE}"
   require_absolute_path PPSV_POOL_ROOT "${PPSV_POOL_ROOT}"
   require_absolute_path PPSV_FALLBACK_ROOT "${PPSV_FALLBACK_ROOT}"
@@ -115,6 +117,7 @@ validate_runtime_paths() {
     "${PPSV_RELEASES_ROOT}" \
     "${PPSV_DATA_ROOT}" \
     "${PPSV_CURRENT_LINK}" \
+    "${PPSV_R_BIN}" \
     "${PPSV_DB_FILE}" \
     "${PPSV_POOL_ROOT}" \
     "${PPSV_FALLBACK_ROOT}"; do
@@ -131,6 +134,7 @@ validate_runtime_paths() {
     *) die "PPSV_FALLBACK_ROOT must be below PPSV_DATA_ROOT." ;;
   esac
   [[ "${RENV_PATHS_CACHE}" == "${PPSV_DATA_ROOT}/renv-cache" ]] || die "RENV_PATHS_CACHE must be the private ${PPSV_DATA_ROOT}/renv-cache directory."
+  [[ "${PPSV_R_BIN}" == /opt/R/4.6.1/bin ]] || die "PPSV_R_BIN must be /opt/R/4.6.1/bin for this release."
   [[ "${PPSV_BACKUP_DIR}" == "${PPSV_DATA_ROOT}/db-backups" ]] || die "PPSV_BACKUP_DIR must be ${PPSV_DATA_ROOT}/db-backups."
   [[ "${PPSV_BACKUP_DIR}" != "${PPSV_FALLBACK_ROOT}" ]] || die "Backup and fallback directories must differ."
 

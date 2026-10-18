@@ -50,6 +50,7 @@ using the active database user and requested record before every read or write.
 |---|---|---|
 | `PPSV_RELEASES_ROOT` | `/srv/ppsvf-app/releases` | Root-owned immutable release directories |
 | `PPSV_CURRENT_LINK` | `/srv/shiny-server/ppsvf-app` | Atomic symlink to the active application |
+| `PPSV_R_BIN` | `/opt/R/4.6.1/bin` | Side-by-side R 4.6.1 for PPSV without changing `/usr/bin/R` |
 | `PPSV_DATA_ROOT` | `/srv/ppsv-app-data` | Persistent database, locks, fallback, local backups, deployment records, renv cache |
 | `PPSV_DB_FILE` | `/srv/ppsv-app-data/database/ppsv_projects.db` | Fresh PPSV SQLite database in a runtime-only directory |
 | `PPSV_POOL_ROOT` | `/fs/pool/pool-ppsvf-projects` | Primary files, outside the web root |
@@ -69,6 +70,7 @@ file is `/etc/ppsvf-app/ppsvf-app.env`, root-owned, not a symlink, and mode
 |---|---|
 | `AUTH_MODE` | `ldap` in production; `test` only in an isolated test harness |
 | `PPSV_PUBLIC_URL` | Canonical `https://ppcf-vm.biochem.mpg.de/ppsvf-app/` URL |
+| `PPSV_R_BIN` | Pinned PPSV R binary directory; this release requires `/opt/R/4.6.1/bin` |
 | `PPSV_DB_FILE` | SQLite path directly inside `PPSV_DATA_ROOT/database` |
 | `PPSV_POOL_ROOT` | Primary facility project pool |
 | `PPSV_POOL_EXPECTED_SOURCE` | Exact reviewed `findmnt` source for the facility pool; provisioning/deployment stop if it changes |

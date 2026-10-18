@@ -35,6 +35,19 @@ Do not transfer local databases, generated Quarto output, `.Renviron` files,
 SMTP secrets, or ad-hoc test uploads. The PPSV deployment must initialize a
 fresh database on the VM when one is absent.
 
+## Confirm the side-by-side R installation
+
+PPSV uses R 4.6.1 at `/opt/R/4.6.1/bin`; the system's `/usr/bin/R` can remain
+at 4.5 for other applications. Do not replace the system R symlink. Check the
+PPSV binary directly:
+
+```bash
+/opt/R/4.6.1/bin/Rscript -e 'cat(as.character(getRversion()), "\n")'
+```
+
+The output must be `4.6.1`. Provisioning, deployment, Shiny Server, and
+maintenance workers all use that installation explicitly.
+
 ## Before touching production
 
 This is an evidence checklist, not a command sequence. Before anyone describes
@@ -85,6 +98,7 @@ PPSV_PUBLIC_URL=https://ppcf-vm.biochem.mpg.de/ppsvf-app/
 APP_RUN_USER=ppsvf-shiny-user
 APP_RUN_GROUP=b_profa
 PPSV_POOL_GROUP=b_profa
+PPSV_R_BIN=/opt/R/4.6.1/bin
 PPSV_DB_FILE=/srv/ppsv-app-data/database/ppsv_projects.db
 PPSV_POOL_ROOT=/fs/pool/pool-ppsvf-projects
 PPSV_FALLBACK_ROOT=/srv/ppsv-app-data/uploads_pending_pool

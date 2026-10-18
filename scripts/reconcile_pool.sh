@@ -23,4 +23,4 @@ APP_DIR="$(validate_active_app_dir)"
 
 cd "${APP_DIR}"
 log "Reconciling fallback uploads. Files are checksum-verified before database paths change."
-run_as_app Rscript -e 'source("R/load_backend.R"); ppsv_initialize(); print(ppsv_reconcile_storage())'
+run_as_app "${PPSV_R_BIN}/Rscript" -e 'source("R/load_backend.R"); ppsv_initialize(); print(ppsv_reconcile_storage())'

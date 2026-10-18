@@ -57,6 +57,7 @@ done
 if [[ -n "${ENV_FILE}" ]]; then
   load_runtime_env "${ENV_FILE}"
 fi
+PPSV_R_BIN="${PPSV_R_BIN:-/opt/R/4.6.1/bin}"
 
 EXPECTED_SHINY_VERSION="${SHINY_SERVER_VERSION:-1.5.23.1030}"
 if [[ -n "${ENV_FILE}" ]]; then
@@ -101,8 +102,6 @@ APT_PACKAGES=(
   make
   pandoc
   python3
-  r-base
-  r-base-dev
   rsync
   sqlite3
   unzip
@@ -123,9 +122,12 @@ fi
 
 ((${#missing_packages[@]} == 0)) || die "Missing Ubuntu packages: ${missing_packages[*]}. Re-run with --install-system after review."
 
-for command_name in apache2ctl curl flock git java javac openssl python3 R Rscript rsync setfacl sha256sum sqlite3; do
+for command_name in apache2ctl curl flock git java javac openssl python3 rsync setfacl sha256sum sqlite3; do
   require_command "${command_name}"
 done
+[[ -x "${PPSV_R_BIN}/R" && -x "${PPSV_R_BIN}/Rscript" ]] || die "PPSV requires R and Rscript under ${PPSV_R_BIN}; install R 4.6.1 side-by-side first."
+installed_r_version="$("${PPSV_R_BIN}/Rscript" --vanilla -e 'cat(as.character(getRversion()))' 2>/dev/null || true)"
+[[ "${installed_r_version}" == 4.6.1 ]] || die "Expected PPSV R 4.6.1 under ${PPSV_R_BIN}; found ${installed_r_version:-unavailable}."
 
 [[ -x /opt/shiny-server/bin/shiny-server ]] || die "Shiny Server is not installed. Use install_shiny_server.sh with a reviewed .deb checksum."
 installed_shiny_version="$(dpkg-query -W -f='${Version}' shiny-server 2>/dev/null || true)"
@@ -139,7 +141,7 @@ LOCK_SIDECAR="${REPO_ROOT%/}/ppsvf-app/renv.lock.sha256"
   cd "$(dirname "${LOCK_FILE}")"
   sha256sum --check --strict "$(basename "${LOCK_SIDECAR}")"
 ) || die "renv.lock does not match its reviewed SHA-256 sidecar."
-Rscript --vanilla -e '
+"${PPSV_R_BIN}/Rscript" --vanilla -e '
   path <- commandArgs(trailingOnly = TRUE)[[1L]]
   lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
   quote <- intToUtf8(34L)
@@ -166,14 +168,14 @@ Rscript --vanilla -e '
   }
 ' "${LOCK_FILE}"
 
-java_home="$(R CMD config JAVA_HOME 2>/dev/null || true)"
-[[ -n "${java_home}" && -d "${java_home}" ]] || die "R is not configured with a valid JAVA_HOME. Run sudo R CMD javareconf, then retry."
+java_home="$("${PPSV_R_BIN}/R" CMD config JAVA_HOME 2>/dev/null || true)"
+[[ -n "${java_home}" && -d "${java_home}" ]] || die "R 4.6.1 is not configured with a valid JAVA_HOME. Run sudo ${PPSV_R_BIN}/R CMD javareconf, then retry."
 
 if [[ -n "${RUNTIME_PROJECT}" ]]; then
   [[ -d "${RUNTIME_PROJECT}" ]] || die "Runtime project does not exist: ${RUNTIME_PROJECT}"
   (
     cd "${RUNTIME_PROJECT}"
-    Rscript -e '
+    "${PPSV_R_BIN}/Rscript" -e '
       stopifnot(requireNamespace("renv", quietly = TRUE))
       stopifnot(requireNamespace("rJava", quietly = TRUE))
       stopifnot(requireNamespace("mailR", quietly = TRUE))

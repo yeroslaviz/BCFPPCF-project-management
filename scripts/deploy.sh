@@ -160,7 +160,7 @@ log "Restoring locked R dependencies into staged release ${RELEASE_ID}."
     RENV_PROJECT="${STAGING_ROOT}/ppsvf-app" \
     RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" \
     RENV_CONFIG_CACHE_SYMLINKS=false \
-    Rscript -e '
+    "${PPSV_R_BIN}/Rscript" -e '
       stopifnot(requireNamespace("renv", quietly = TRUE))
       renv::restore(project = getwd(), prompt = FALSE)
       required <- c("DBI", "digest", "DT", "mailR", "png", "rJava", "RSQLite", "shiny")
@@ -194,7 +194,7 @@ systemctl stop shiny-server.service
 log "Applying transactional database migrations."
 (
   cd "${STAGING_ROOT}/ppsvf-app"
-  runuser -u "${APP_RUN_USER}" -- env PPSV_RESET_DB=0 RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" Rscript setup_database.R
+  runuser -u "${APP_RUN_USER}" -- env PPSV_RESET_DB=0 RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" "${PPSV_R_BIN}/Rscript" setup_database.R
 )
 [[ -f "${PPSV_DB_FILE}" ]] || die "Database initializer did not create ${PPSV_DB_FILE}."
 chown "${APP_RUN_USER}:${APP_RUN_GROUP}" "${PPSV_DB_FILE}"

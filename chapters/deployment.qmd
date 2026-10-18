@@ -37,6 +37,12 @@ No repository script downloads an installer. R dependencies are pinned in
 `ppsvf-app/renv.lock`; its reviewed `renv.lock.sha256` must verify before a
 restore or deployment proceeds.
 
+PPSV runs with the side-by-side R 4.6.1 installation at
+`/opt/R/4.6.1/bin`. Set `PPSV_R_BIN` to that path in the protected environment
+file. The provisioning check, dependency restore, database migration, mail and
+backup workers, and Shiny Server all select it explicitly. Leave
+`/usr/bin/R` untouched so other VM applications can keep their system R.
+
 ## TLS inputs and validation
 
 The operator must supply three distinct, absolute paths:

@@ -25,6 +25,9 @@ ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
 
 ### 2026-10-18
 
+- Pinned PPSV provisioning, deployment, Shiny Server, and maintenance workers
+  to side-by-side R 4.6.1 at `/opt/R/4.6.1/bin`; the VM-wide `/usr/bin/R` remains
+  unchanged.
 - Changed persistent data to `/srv/ppsv-app-data`: pool-outage uploads remain in
   `uploads_pending_pool/`, while weekly verified local copies go to
   `db-backups/`. Local copies are not off-host disaster recovery.

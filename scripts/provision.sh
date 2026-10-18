@@ -45,6 +45,7 @@ validate_runtime_paths
 [[ "${PPSV_DATA_ROOT}" == /srv/ppsv-app-data ]] || die "PPSV_DATA_ROOT must be /srv/ppsv-app-data."
 [[ "${PPSV_FALLBACK_ROOT}" == /srv/ppsv-app-data/uploads_pending_pool ]] || die "PPSV_FALLBACK_ROOT must be the agreed local fallback directory."
 [[ "${PPSV_BACKUP_DIR}" == /srv/ppsv-app-data/db-backups && "${PPSV_ALLOW_LOCAL_BACKUP}" == 1 ]] || die "Weekly local backups must use /srv/ppsv-app-data/db-backups with PPSV_ALLOW_LOCAL_BACKUP=1."
+[[ "${PPSV_R_BIN}" == /opt/R/4.6.1/bin ]] || die "PPSV must use the side-by-side R 4.6.1 installation."
 
 check_args=(--repo "${PPSV_REPO_ROOT_DEFAULT}" --env "${ENV_FILE}")
 ((INSTALL_SYSTEM == 0)) || check_args+=(--install-system)
