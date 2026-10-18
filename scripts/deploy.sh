@@ -245,7 +245,7 @@ chmod 0640 "${record_tmp}"
 mv -T "${record_tmp}" "${record}"
 record_tmp=""
 
-systemctl start ppsv-mail-outbox.timer ppsv-backup.timer
+systemctl start ppsv-mail-outbox.timer ppsv-backup.timer ppsv-healthcheck.timer
 PPSV_ENV_FILE="${ENV_FILE}" "${SCRIPT_DIR}/verify_deployment.sh" --skip-public
 
 services_quiesced=0

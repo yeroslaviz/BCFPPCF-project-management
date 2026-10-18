@@ -17,7 +17,7 @@ All four items must be resolved before declaring production ready.
 | Matching TLS private key | Exact key path, certificate serial/SAN/expiry, matching public-key hashes, successful chain validation | |
 | Service sender authorization | Written relay authorization for `ppsv-service@biochem.mpg.de` under the configured SMTP account | |
 | Real ticket requester/auto-reply test | Ticket ID, headers, requester address, chosen mode, and proof of exactly one acknowledgement | |
-| External backup and pool policy | External mount identity, retention, alerting, successful restore drill, and approved pool snapshot/restore procedure | |
+| Recovery policy | Local weekly backup/restore evidence, off-host coverage, alerting, and approved pool snapshot/restore procedure | |
 
 An unresolved row is a release blocker. Do not replace missing evidence with an
 assumption or a successful local unit test.
@@ -61,12 +61,12 @@ sudo scripts/verify_deployment.sh \
 sudo shred -u /root/ppsv-test.netrc
 ```
 
-Never add `-k` or `--insecure` to make a TLS check pass. Full verification also
-fails until `PPSV_SERVICE_IDENTITY_AUTHORIZED_ACK`,
-`PPSV_TICKET_E2E_TEST_ACK`, and `PPSV_POOL_SNAPSHOT_POLICY_ACK` are `1`; each
-value must be changed only after its evidence is recorded. It verifies that the
-live backup mount source exactly matches `PPSV_BACKUP_EXPECTED_SOURCE` and the
-facility pool matches `PPSV_POOL_EXPECTED_SOURCE`.
+Never add `-k` or `--insecure` to make a TLS check pass. Ticket delivery
+verification fails until `PPSV_SERVICE_IDENTITY_AUTHORIZED_ACK` and
+`PPSV_TICKET_E2E_TEST_ACK` are `1`. The agreed weekly local backups are verified
+but do not provide off-host disaster recovery. Keep
+`PPSV_POOL_SNAPSHOT_POLICY_ACK=0` until pool recovery is documented and tested.
+The facility pool must match `PPSV_POOL_EXPECTED_SOURCE`.
 
 ## Network, TLS, and redirects
 
@@ -103,7 +103,7 @@ facility pool matches `PPSV_POOL_EXPECTED_SOURCE`.
 - [ ] The data parent is root-owned `0750`; the database directory and renv
   cache are app-owned `0700`. The SQLite database and sidecars are `0600` and
   cannot be opened by another `b_profa` member.
-- [ ] The external backup directories are app-owned `0700` with `0600` backup
+- [ ] The local backup directories are app-owned `0700` with `0600` backup
   files; another `b_profa` member cannot read a backup archive.
 
 ## Three-role authorization exercise
@@ -196,8 +196,14 @@ sudo -u ppsvf-shiny-user rmdir "$probe"
 
 ## Backup and restore exercise
 
-- [ ] Nightly timer is enabled and a fresh database backup and fallback archive
-  exist on the verified external mount with matching SHA-256 sidecars.
+- [ ] Weekly timer is enabled and a database backup and fallback archive no
+  older than eight days exist under `/srv/ppsv-app-data/db-backups` with matching
+  SHA-256 sidecars.
+- [ ] The five-minute healthcheck timer is enabled; a pool outage simulated on
+  a test VM or during a maintenance window produces one operator alert and a
+  recovery produces one resolution alert.
+- [ ] Off-host recovery is separately arranged and tested; local backups alone
+  do not cover loss of the VM or its disk.
 - [ ] Retention is 30 days and old-artifact removal has been observed safely.
 - [ ] `restore_backup.sh` read-only validation succeeds.
 - [ ] A full restore has succeeded on a disposable environment and the evidence

@@ -42,6 +42,9 @@ validate_runtime_paths
 [[ "${APP_RUN_GROUP}" == "${PPSV_POOL_GROUP}" ]] || die "APP_RUN_GROUP and PPSV_POOL_GROUP must both be b_profa."
 [[ "${AUTH_MODE:-}" == ldap ]] || die "Production AUTH_MODE must be ldap."
 [[ "${PPSV_PUBLIC_URL}" == https://ppcf-vm.biochem.mpg.de/ppsvf-app/ ]] || die "Unexpected PPSV_PUBLIC_URL: ${PPSV_PUBLIC_URL}"
+[[ "${PPSV_DATA_ROOT}" == /srv/ppsv-app-data ]] || die "PPSV_DATA_ROOT must be /srv/ppsv-app-data."
+[[ "${PPSV_FALLBACK_ROOT}" == /srv/ppsv-app-data/uploads_pending_pool ]] || die "PPSV_FALLBACK_ROOT must be the agreed local fallback directory."
+[[ "${PPSV_BACKUP_DIR}" == /srv/ppsv-app-data/db-backups && "${PPSV_ALLOW_LOCAL_BACKUP}" == 1 ]] || die "Weekly local backups must use /srv/ppsv-app-data/db-backups with PPSV_ALLOW_LOCAL_BACKUP=1."
 
 check_args=(--repo "${PPSV_REPO_ROOT_DEFAULT}" --env "${ENV_FILE}")
 ((INSTALL_SYSTEM == 0)) || check_args+=(--install-system)
@@ -137,7 +140,7 @@ openssl verify -purpose sslserver \
   "${TLS_CERT_FILE}" >/dev/null || die "TLS leaf/intermediate chain does not terminate at a system-trusted CA."
 log "TLS key, SAN, expiry, leaf order, and chain validated."
 
-# Prove both external storage dependencies before changing accounts,
+# Prove the facility pool and configured recovery destination before changing accounts,
 # permissions, environment files, or service configuration.
 validate_pool_destination
 validate_backup_destination
@@ -156,6 +159,7 @@ config_targets=(
   /usr/local/libexec/ppsvf-app/backup_database.R
   /usr/local/libexec/ppsvf-app/check_requirements.sh
   /usr/local/libexec/ppsvf-app/deploy.sh
+  /usr/local/libexec/ppsvf-app/healthcheck.py
   /usr/local/libexec/ppsvf-app/process_mail_outbox.sh
   /usr/local/libexec/ppsvf-app/reconcile_pool.sh
   /usr/local/libexec/ppsvf-app/restore_backup.sh
@@ -166,6 +170,8 @@ config_targets=(
   /etc/systemd/system/ppsv-mail-outbox.timer
   /etc/systemd/system/ppsv-backup.service
   /etc/systemd/system/ppsv-backup.timer
+  /etc/systemd/system/ppsv-healthcheck.service
+  /etc/systemd/system/ppsv-healthcheck.timer
   /etc/systemd/system/ppsv-pool-reconcile.service
 )
 install -d -o root -g root -m 0700 "${tls_work}/previous"
@@ -204,6 +210,8 @@ install -d -o root -g "${APP_RUN_GROUP}" -m 0750 "${PPSV_RELEASES_ROOT}"
 install -d -o root -g "${APP_RUN_GROUP}" -m 0750 "${PPSV_DATA_ROOT}"
 install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 "${PPSV_DATA_ROOT}/database"
 install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 "${RENV_PATHS_CACHE}"
+[[ ! -L "${PPSV_DATA_ROOT}/alerts" ]] || die "Refusing a symbolic link in alert state storage."
+install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 "${PPSV_DATA_ROOT}/alerts"
 for db_path in "${PPSV_DB_FILE}" "${PPSV_DB_FILE}-wal" "${PPSV_DB_FILE}-shm"; do
   if [[ -e "${db_path}" || -L "${db_path}" ]]; then
     [[ -f "${db_path}" && ! -L "${db_path}" ]] || die "Unsafe existing database path: ${db_path}"
@@ -212,6 +220,8 @@ for db_path in "${PPSV_DB_FILE}" "${PPSV_DB_FILE}-wal" "${PPSV_DB_FILE}-shm"; do
   fi
 done
 install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 2770 "${PPSV_FALLBACK_ROOT}"
+[[ ! -L "${PPSV_BACKUP_DIR}" ]] || die "Refusing a symbolic link in backup storage."
+install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 "${PPSV_BACKUP_DIR}"
 install -d -o root -g "${APP_RUN_GROUP}" -m 0750 \
   "${PPSV_DATA_ROOT}/locks" "${PPSV_DATA_ROOT}/deployments" "${PPSV_DATA_ROOT}/pre_restore"
 for lock_file in "${PPSV_DATA_ROOT}/locks/maintenance.lock" "${PPSV_DATA_ROOT}/locks/mail-outbox.lock"; do
@@ -250,18 +260,18 @@ a2ensite ppsv-vm-shiny-80.conf ppsv-vm-shiny-443.conf
 apache2ctl configtest
 
 install -d -o root -g root -m 0755 /usr/local/libexec/ppsvf-app
-for helper in lib.sh backup.sh backup_database.R check_requirements.sh deploy.sh process_mail_outbox.sh reconcile_pool.sh restore_backup.sh rollback.sh verify_deployment.sh; do
+for helper in lib.sh backup.sh backup_database.R check_requirements.sh deploy.sh healthcheck.py process_mail_outbox.sh reconcile_pool.sh restore_backup.sh rollback.sh verify_deployment.sh; do
   install -o root -g root -m 0755 "${SCRIPT_DIR}/${helper}" "/usr/local/libexec/ppsvf-app/${helper}"
 done
 
 install -d -o root -g root -m 0755 /etc/systemd/system/shiny-server.service.d
 install -o root -g root -m 0644 "${SCRIPT_DIR}/systemd/shiny-server-ppsv.conf" /etc/systemd/system/shiny-server.service.d/ppsvf-app.conf
-for unit in ppsv-mail-outbox.service ppsv-mail-outbox.timer ppsv-backup.service ppsv-backup.timer ppsv-pool-reconcile.service; do
+for unit in ppsv-mail-outbox.service ppsv-mail-outbox.timer ppsv-backup.service ppsv-backup.timer ppsv-healthcheck.service ppsv-healthcheck.timer ppsv-pool-reconcile.service; do
   install -o root -g root -m 0644 "${SCRIPT_DIR}/systemd/${unit}" "/etc/systemd/system/${unit}"
 done
 
 systemctl daemon-reload
-systemctl enable ppsv-mail-outbox.timer ppsv-backup.timer
+systemctl enable ppsv-mail-outbox.timer ppsv-backup.timer ppsv-healthcheck.timer
 systemctl reload apache2
 
 config_committed=1

@@ -1,0 +1,15 @@
+[Unit]
+Description=Check PPSV health and notify the operator on changes
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/ppsvf-app/ppsvf-app.env
+
+[Service]
+Type=oneshot
+User=ppsvf-shiny-user
+Group=b_profa
+EnvironmentFile=/etc/ppsvf-app/ppsvf-app.env
+ExecStart=/usr/local/libexec/ppsvf-app/healthcheck.py
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true

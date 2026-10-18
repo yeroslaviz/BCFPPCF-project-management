@@ -49,10 +49,11 @@ using the active database user and requested record before every read or write.
 |---|---|---|
 | `PPSV_RELEASES_ROOT` | `/srv/ppsvf-app/releases` | Root-owned immutable release directories |
 | `PPSV_CURRENT_LINK` | `/srv/shiny-server/ppsvf-app` | Atomic symlink to the active application |
-| `PPSV_DATA_ROOT` | `/srv/ppsvf-app-data` | Persistent database, locks, fallback, deployment records, renv cache |
-| `PPSV_DB_FILE` | `/srv/ppsvf-app-data/database/ppsv_projects.db` | Fresh PPSV SQLite database in a runtime-only directory |
+| `PPSV_DATA_ROOT` | `/srv/ppsv-app-data` | Persistent database, locks, fallback, local backups, deployment records, renv cache |
+| `PPSV_DB_FILE` | `/srv/ppsv-app-data/database/ppsv_projects.db` | Fresh PPSV SQLite database in a runtime-only directory |
 | `PPSV_POOL_ROOT` | `/fs/pool/pool-ppsvf-projects` | Primary files, outside the web root |
-| `PPSV_FALLBACK_ROOT` | `/srv/ppsvf-app-data/uploads_pending_pool` | Persistent storage while pool is unavailable |
+| `PPSV_FALLBACK_ROOT` | `/srv/ppsv-app-data/uploads_pending_pool` | Persistent storage while pool is unavailable |
+| `PPSV_BACKUP_DIR` | `/srv/ppsv-app-data/db-backups` | Weekly local database/fallback recovery copies |
 
 The database and uploads must never live inside a release. The active symlink
 may be replaced or rolled back without touching mutable state.
@@ -81,6 +82,17 @@ file is `/etc/ppsvf-app/ppsvf-app.env`, root-owned, not a symlink, and mode
 | `PPSV_SMTP_SECURITY` | `none`, `ssl`, or `starttls` |
 | `PPSV_SMTP_USER` | Optional relay username |
 | `PPSV_SMTP_PASSWORD` | Relay secret when a username is configured |
+| `PPSV_ALERT_TO` | Operator address for health-change notifications; default template uses `omicsdesk@biochem.mpg.de` |
+
+`ppsv-healthcheck.timer` runs every five minutes. Its Python standard-library
+SMTP sender does not use SQLite or the request outbox, so database failures can
+still be reported. It retries a failed alert on the next check and sends one
+resolution notice when a fault clears. An SMTP/network outage cannot be
+reported by email through that same unavailable relay; inspect the systemd
+journal or use independent infrastructure monitoring for this case.
+Checks cover the facility pool and fallback, active project-file existence,
+SQLite integrity, exhausted mail-outbox rows, weekly backup age and job result,
+the mail/backup timers, Apache, Shiny, and local disk capacity.
 
 `PPSV_TICKET_MODE=disabled` preserves a visible suppressed outbox record; it
 does not pretend that ticket delivery succeeded.
@@ -95,8 +107,9 @@ does not pretend that ticket delivery succeeded.
 | `TLS_CERT_FILE` | Absolute path to the leaf certificate |
 | `TLS_BUNDLE_FILE` | Absolute path to the leaf-first certificate chain |
 | `TLS_KEY_FILE` | Mandatory exact matching private key; never guessed |
-| `PPSV_BACKUP_DIR` | Mandatory external mounted backup destination |
-| `PPSV_BACKUP_EXPECTED_SOURCE` | Exact reviewed output of `findmnt -n -o SOURCE -T PPSV_BACKUP_DIR`; backup/verification stop if it changes |
+| `PPSV_BACKUP_DIR` | Local `/srv/ppsv-app-data/db-backups`, sibling of the fallback upload directory |
+| `PPSV_ALLOW_LOCAL_BACKUP` | `1` for the agreed local weekly backup layout |
+| `PPSV_BACKUP_EXPECTED_SOURCE` | Not used for this local layout |
 | `PPSV_BACKUP_RETENTION_DAYS` | Retention in days; default `30` |
 | `PPSV_SERVICE_IDENTITY_AUTHORIZED_ACK` | `1` only after written authorization for the service sender |
 | `PPSV_TICKET_E2E_TEST_ACK` | `1` only after the real requester/auto-reply test passes |
@@ -104,9 +117,9 @@ does not pretend that ticket delivery succeeded.
 | `SHINY_SERVER_VERSION` | Exact reviewed Shiny Server package version |
 | `SHINY_SERVER_DEB_SHA256` | Independently reviewed checksum recorded for the exact installer |
 
-`PPSV_ALLOW_LOCAL_BACKUP=1`, `PPSV_ALLOW_LOCAL_POOL=1`, and
-`PPSV_ALLOW_OS_OVERRIDE=1` exist only to make an explicitly documented test
-host possible. They are not production values.
+The agreed `PPSV_ALLOW_LOCAL_BACKUP=1` permits weekly local recovery copies,
+but does not provide off-host disaster recovery. `PPSV_ALLOW_LOCAL_POOL=1` and
+`PPSV_ALLOW_OS_OVERRIDE=1` remain test-only overrides.
 
 ## Database model and migrations
 

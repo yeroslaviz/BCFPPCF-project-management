@@ -132,11 +132,11 @@ ppsv_config <- function(overrides = list()) {
   )
   config <- list(
     app_dir = app_dir,
-    db_file = Sys.getenv("PPSV_DB_FILE", "/srv/ppsvf-app-data/database/ppsv_projects.db"),
+    db_file = Sys.getenv("PPSV_DB_FILE", "/srv/ppsv-app-data/database/ppsv_projects.db"),
     pool_root = Sys.getenv("PPSV_POOL_ROOT", "/fs/pool/pool-ppsvf-projects"),
     pool_expected_source = Sys.getenv("PPSV_POOL_EXPECTED_SOURCE", ""),
     allow_local_pool = ppsv_env_flag("PPSV_ALLOW_LOCAL_POOL", FALSE),
-    fallback_root = Sys.getenv("PPSV_FALLBACK_ROOT", "/srv/ppsvf-app-data/uploads_pending_pool"),
+    fallback_root = Sys.getenv("PPSV_FALLBACK_ROOT", "/srv/ppsv-app-data/uploads_pending_pool"),
     public_url = sub("/+$", "", Sys.getenv("PPSV_PUBLIC_URL", "https://ppcf-vm.biochem.mpg.de/ppsvf-app/")),
     max_upload_mb = suppressWarnings(as.numeric(Sys.getenv("PPSV_MAX_UPLOAD_MB", "75"))),
     ticket_to = Sys.getenv("PPSV_TICKET_TO", PPSV_FACILITY_EMAIL),
@@ -150,6 +150,7 @@ ppsv_config <- function(overrides = list()) {
     smtp_security = tolower(Sys.getenv("PPSV_SMTP_SECURITY", "starttls")),
     smtp_user = Sys.getenv("PPSV_SMTP_USER", ""),
     smtp_password = Sys.getenv("PPSV_SMTP_PASSWORD", ""),
+    alert_to = Sys.getenv("PPSV_ALERT_TO", ""),
     auth_mode = tolower(Sys.getenv("AUTH_MODE", "ldap")),
     logo_path = Sys.getenv("PPSV_LOGO_PATH", file.path(app_dir, "www", "ppsv-logo.png"))
   )

@@ -100,6 +100,7 @@ APT_PACKAGES=(
   libxml2-dev
   make
   pandoc
+  python3
   r-base
   r-base-dev
   rsync
@@ -122,7 +123,7 @@ fi
 
 ((${#missing_packages[@]} == 0)) || die "Missing Ubuntu packages: ${missing_packages[*]}. Re-run with --install-system after review."
 
-for command_name in apache2ctl curl flock git java javac openssl R Rscript rsync setfacl sha256sum sqlite3; do
+for command_name in apache2ctl curl flock git java javac openssl python3 R Rscript rsync setfacl sha256sum sqlite3; do
   require_command "${command_name}"
 done
 

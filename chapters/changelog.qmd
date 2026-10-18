@@ -19,12 +19,20 @@ rendering, and a browser smoke test.
 
 Production activation is still gated on four administrator-owned items: the
 matching TLS private key, authorization of `ppsv-service@biochem.mpg.de`, a real
-ticket auto-reply/requester test, and an external backup destination plus pool
-snapshot policy.
+ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
 
 ## Latest repository changes
 
 ### 2026-10-18
+
+- Changed persistent data to `/srv/ppsv-app-data`: pool-outage uploads remain in
+  `uploads_pending_pool/`, while weekly verified local copies go to
+  `db-backups/`. Local copies are not off-host disaster recovery.
+- Added a five-minute health monitor with change-only operator email to
+  `omicsdesk@biochem.mpg.de` for pool/fallback, missing project files,
+  database, backup, mail-outbox, low disk space, Apache, and Shiny failures.
+  Alert delivery depends on the SMTP relay.
+- Configured the example for anonymous SMTP via `msx.biochem.mpg.de:25`.
 
 - Kept `ppsvf-shiny-user` in `b_profa` for project-pool access while moving
   SQLite into an app-only `0700` directory with `0600` database files.

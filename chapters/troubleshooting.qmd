@@ -13,13 +13,13 @@ auth, accepting a client identity header, or making files world-writable.
 
 ```bash
 sudo systemctl --no-pager --full status apache2 shiny-server.service \
-  ppsv-mail-outbox.timer ppsv-backup.timer
+  ppsv-mail-outbox.timer ppsv-backup.timer ppsv-healthcheck.timer
 sudo journalctl -u apache2 -u shiny-server.service --since '-30 minutes'
 sudo apache2ctl configtest
 sudo ss -ltnp | grep 3838
 sudo readlink -f /srv/shiny-server/ppsvf-app
 sudo stat -c '%U:%G %a %n' /etc/ppsvf-app/ppsvf-app.env \
-  /srv/ppsvf-app-data/database/ppsv_projects.db
+  /srv/ppsv-app-data/database/ppsv_projects.db
 ```
 
 Do not print the entire environment file into a ticket or shared terminal log;
@@ -91,9 +91,9 @@ and deploy a new release; do not edit a database role.
 ## Database startup or migration error
 
 ```bash
-sudo -u ppsvf-shiny-user sqlite3 /srv/ppsvf-app-data/database/ppsv_projects.db \
+sudo -u ppsvf-shiny-user sqlite3 /srv/ppsv-app-data/database/ppsv_projects.db \
   'PRAGMA integrity_check; SELECT * FROM schema_migrations ORDER BY version;'
-sudo stat -c '%U:%G %a %n' /srv/ppsvf-app-data/database/ppsv_projects.db*
+sudo stat -c '%U:%G %a %n' /srv/ppsv-app-data/database/ppsv_projects.db*
 sudo journalctl -u shiny-server.service -n 150 --no-pager
 ```
 
@@ -103,7 +103,7 @@ and applies later migrations transactionally. Do not point PPSV at
 `ms_projects.db`, use a reset flag, or delete the database as a repair.
 
 For integrity failure, stop writers, preserve evidence, verify the newest
-external backup, and follow [Backup and restore](backup-restore.qmd). For a code
+local backup, and follow [Backup and restore](backup-restore.qmd). For a code
 compatibility problem, roll back code first; remember that migrations remain.
 
 ## Ticket delivery is pending, retrying, or failed
@@ -141,7 +141,7 @@ Confirm the mount identity, permissions, and service-user access:
 findmnt -T /fs/pool/pool-ppsvf-projects
 sudo getfacl /fs/pool/pool-ppsvf-projects
 sudo -u ppsvf-shiny-user test -w /fs/pool/pool-ppsvf-projects
-sudo find /srv/ppsvf-app-data/uploads_pending_pool -maxdepth 3 -type f -print
+sudo find /srv/ppsv-app-data/uploads_pending_pool -maxdepth 3 -type f -print
 ```
 
 Do not recursively `chmod 777`, `chmod 666`, or `chown` the facility pool. Ask
@@ -180,7 +180,7 @@ findmnt -T /the/configured/backup/path
 df -h /the/configured/backup/path
 ```
 
-Common causes are a missing external mount, no free space, permissions, a held
+Common causes are no free space, permissions, a held
 operation lock, or SQLite integrity failure. Confirm the path is the intended
 external filesystem, not an accidentally created directory on `/`. Fix the
 cause and start the service again; then verify new artifacts and sidecars and

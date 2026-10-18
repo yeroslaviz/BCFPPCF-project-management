@@ -91,7 +91,7 @@ validates:
   renv-cache directories;
 - project-pool setgid/default ACL access for the service account and
   `b_profa`;
-- the required external backup directories;
+- the configured local backup directories;
 - loopback-only Shiny Server configuration;
 - HTTP redirect and HTTPS LDAP/WebSocket Apache sites; and
 - systemd units for the mail worker, backup, and pool reconciliation.
@@ -185,9 +185,10 @@ sudo scripts/verify_deployment.sh \
   --role-admin yeroslaviz
 ```
 
-The verifier also refuses readiness while the service-sender authorization,
-ticket end-to-end test, or pool-snapshot-policy acknowledgement remains `0`,
-and verifies that the external backup mount has the recorded source. It
+The full verifier still refuses ticket readiness while the service-sender
+authorization or ticket end-to-end test acknowledgement remains `0`. It warns
+when pool-snapshot evidence is missing and checks that the configured local
+backup directories are writable. It
 supplements rather than replaces the manual browser, ticket, role, and restore
 tests in [Acceptance and handoff](acceptance.qmd).
 

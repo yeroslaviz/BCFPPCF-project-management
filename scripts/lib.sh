@@ -68,7 +68,7 @@ load_runtime_env() {
   export APP_RUN_GROUP="${APP_RUN_GROUP:-b_profa}"
   export PPSV_POOL_GROUP="${PPSV_POOL_GROUP:-b_profa}"
   export PPSV_RELEASES_ROOT="${PPSV_RELEASES_ROOT:-/srv/ppsvf-app/releases}"
-  export PPSV_DATA_ROOT="${PPSV_DATA_ROOT:-/srv/ppsvf-app-data}"
+  export PPSV_DATA_ROOT="${PPSV_DATA_ROOT:-/srv/ppsv-app-data}"
   export PPSV_CURRENT_LINK="${PPSV_CURRENT_LINK:-/srv/shiny-server/ppsvf-app}"
   export PPSV_DB_FILE="${PPSV_DB_FILE:-${PPSV_DATA_ROOT}/database/ppsv_projects.db}"
   export PPSV_POOL_ROOT="${PPSV_POOL_ROOT:-/fs/pool/pool-ppsvf-projects}"
@@ -77,6 +77,8 @@ load_runtime_env() {
   export PPSV_BACKUP_RETENTION_DAYS="${PPSV_BACKUP_RETENTION_DAYS:-30}"
   export PPSV_ALLOW_LOCAL_BACKUP="${PPSV_ALLOW_LOCAL_BACKUP:-0}"
   export PPSV_BACKUP_EXPECTED_SOURCE="${PPSV_BACKUP_EXPECTED_SOURCE:-}"
+  export PPSV_BACKUP_DIR="${PPSV_BACKUP_DIR:-${PPSV_DATA_ROOT}/db-backups}"
+  export PPSV_ALERT_TO="${PPSV_ALERT_TO:-}"
   export PPSV_ALLOW_LOCAL_POOL="${PPSV_ALLOW_LOCAL_POOL:-0}"
   export PPSV_POOL_EXPECTED_SOURCE="${PPSV_POOL_EXPECTED_SOURCE:-}"
   export PPSV_POOL_SNAPSHOT_POLICY_ACK="${PPSV_POOL_SNAPSHOT_POLICY_ACK:-0}"
@@ -106,6 +108,7 @@ validate_runtime_paths() {
   require_absolute_path PPSV_POOL_ROOT "${PPSV_POOL_ROOT}"
   require_absolute_path PPSV_FALLBACK_ROOT "${PPSV_FALLBACK_ROOT}"
   require_absolute_path RENV_PATHS_CACHE "${RENV_PATHS_CACHE}"
+  require_absolute_path PPSV_BACKUP_DIR "${PPSV_BACKUP_DIR}"
 
   local path_value
   for path_value in \
@@ -128,6 +131,8 @@ validate_runtime_paths() {
     *) die "PPSV_FALLBACK_ROOT must be below PPSV_DATA_ROOT." ;;
   esac
   [[ "${RENV_PATHS_CACHE}" == "${PPSV_DATA_ROOT}/renv-cache" ]] || die "RENV_PATHS_CACHE must be the private ${PPSV_DATA_ROOT}/renv-cache directory."
+  [[ "${PPSV_BACKUP_DIR}" == "${PPSV_DATA_ROOT}/db-backups" ]] || die "PPSV_BACKUP_DIR must be ${PPSV_DATA_ROOT}/db-backups."
+  [[ "${PPSV_BACKUP_DIR}" != "${PPSV_FALLBACK_ROOT}" ]] || die "Backup and fallback directories must differ."
 
   case "${AUTH_MODE:-ldap}" in
     ldap|test) ;;
@@ -211,17 +216,23 @@ validate_backup_destination() {
   require_value PPSV_BACKUP_DIR
   require_absolute_path PPSV_BACKUP_DIR "${PPSV_BACKUP_DIR}"
   [[ "${PPSV_BACKUP_DIR}" != *REQUIRED* ]] || die "PPSV_BACKUP_DIR still contains an unresolved placeholder."
-  [[ -d "${PPSV_BACKUP_DIR}" && ! -L "${PPSV_BACKUP_DIR}" ]] || die "Backup destination must be an existing, non-symlink directory: ${PPSV_BACKUP_DIR}"
-  [[ -w "${PPSV_BACKUP_DIR}" ]] || die "Backup destination is not writable: ${PPSV_BACKUP_DIR}"
 
   case "${PPSV_ALLOW_LOCAL_BACKUP}" in
     0|1) ;;
     *) die "PPSV_ALLOW_LOCAL_BACKUP must be 0 or 1." ;;
   esac
   if [[ "${PPSV_ALLOW_LOCAL_BACKUP}" == 1 ]]; then
-    warn "Local backup storage is explicitly enabled. This is suitable only for a test VM."
+    [[ "${PPSV_BACKUP_DIR}" == "${PPSV_DATA_ROOT}/db-backups" ]] || die "Local backups must be under the configured data root."
+    [[ ! -L "${PPSV_DATA_ROOT}" && ! -L "${PPSV_BACKUP_DIR}" ]] || die "Local backup path must not contain a symbolic link."
+    if [[ -e "${PPSV_BACKUP_DIR}" ]]; then
+      [[ -d "${PPSV_BACKUP_DIR}" && -w "${PPSV_BACKUP_DIR}" ]] || die "Local backup destination is not a writable directory."
+    fi
+    warn "Local backup storage is enabled. These copies do not protect against loss of the VM or its disk."
     return 0
   fi
+
+  [[ -d "${PPSV_BACKUP_DIR}" && ! -L "${PPSV_BACKUP_DIR}" ]] || die "Backup destination must be an existing, non-symlink directory: ${PPSV_BACKUP_DIR}"
+  [[ -w "${PPSV_BACKUP_DIR}" ]] || die "Backup destination is not writable: ${PPSV_BACKUP_DIR}"
 
   require_command findmnt
   local mount_source mount_target mount_type mount_options mount_device root_device

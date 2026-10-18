@@ -14,40 +14,36 @@ The repository backs up the first two. The storage team must provide and test
 the pool snapshot/restore policy separately. A database backup alone is not a
 complete request-file recovery.
 
-## External backup destination
+## Local backup destination
 
-`PPSV_BACKUP_DIR` is mandatory and must point to a mounted external backup
-destination. Provisioning rejects a path that resolves to the VM root
-filesystem unless `PPSV_ALLOW_LOCAL_BACKUP=1` is deliberately used on a test
-VM. Production must not use that override.
+The agreed local backup directory is `/srv/ppsv-app-data/db-backups`, with
+`PPSV_ALLOW_LOCAL_BACKUP=1`. It contains `database/` and `fallback/` siblings.
+These copies can recover accidental corruption or deletion while the VM and
+disk remain available. They **do not** protect against VM, disk, ransomware,
+or site loss. An independent off-host backup/snapshot policy remains needed
+for disaster recovery; do not mark that requirement complete from these files.
 
 The backup destination and its `database` and `fallback` directories are owned
 by `ppsvf-shiny-user` and use mode `0700`. Backup files use `0600`, because
 `b_profa` is also the runtime user's primary group.
 
-Set `PPSV_BACKUP_EXPECTED_SOURCE` to the exact reviewed output of:
-
-```bash
-findmnt -n -o SOURCE -T "$PPSV_BACKUP_DIR"
-```
-
-Every backup and deployment verification compares the live source with that
-value and stops if the mount is missing or changed. This prevents an empty local
-mount point from silently receiving backups.
+`PPSV_BACKUP_EXPECTED_SOURCE` is unused for this local layout. The project
+pool still requires its reviewed `PPSV_POOL_EXPECTED_SOURCE`, so an unmounted
+pool cannot silently receive new uploads.
 
 Record at minimum:
 
-- mount source and target;
+- the local path and filesystem;
 - storage owner and escalation contact;
 - encryption and access policy;
 - capacity alerting;
 - retention policy;
-- snapshot timing relative to the PPSV nightly backup; and
+- snapshot timing relative to the PPSV weekly backup; and
 - the last successful restore-drill evidence.
 
-## Nightly job
+## Weekly job
 
-`ppsv-backup.timer` runs nightly at 02:15 Europe/Berlin with up to 15 minutes
+`ppsv-backup.timer` runs weekly on Sunday at 02:15 Europe/Berlin with up to 15 minutes
 of randomized delay and catches up after downtime. The default retention is 30
 days.
 
@@ -74,7 +70,7 @@ sudo systemctl list-timers ppsv-backup.timer
 ```
 
 Do not treat a green timer as proof of recovery. Check that new non-empty
-artifacts and sidecars exist on the expected external mount.
+artifacts and sidecars exist in `/srv/ppsv-app-data/db-backups`.
 
 ## Verify a backup without changing production
 
@@ -85,8 +81,8 @@ and unsafe archive paths.
 
 ```bash
 sudo /usr/local/libexec/ppsvf-app/restore_backup.sh \
-  --database /external/ppsv/database/ppsv_projects_TIMESTAMP.sqlite \
-  --fallback /external/ppsv/fallback/uploads_pending_pool_TIMESTAMP.tar.gz
+  --database /srv/ppsv-app-data/db-backups/database/ppsv_projects_TIMESTAMP.sqlite \
+  --fallback /srv/ppsv-app-data/db-backups/fallback/uploads_pending_pool_TIMESTAMP.tar.gz
 ```
 
 Every artifact must have the one-record `.sha256` sidecar created by the backup
@@ -122,14 +118,14 @@ The restore command requires both `--apply` and `--confirm-data-loss`:
 
 ```bash
 sudo /usr/local/libexec/ppsvf-app/restore_backup.sh \
-  --database /external/ppsv/database/ppsv_projects_TIMESTAMP.sqlite \
-  --fallback /external/ppsv/fallback/uploads_pending_pool_TIMESTAMP.tar.gz \
+  --database /srv/ppsv-app-data/db-backups/database/ppsv_projects_TIMESTAMP.sqlite \
+  --fallback /srv/ppsv-app-data/db-backups/fallback/uploads_pending_pool_TIMESTAMP.tar.gz \
   --apply \
   --confirm-data-loss
 ```
 
 The script verifies inputs before stopping services, preserves a pre-restore
-database/fallback copy under `/srv/ppsvf-app-data/pre_restore/TIMESTAMP`, stages
+database/fallback copy under `/srv/ppsv-app-data/pre_restore/TIMESTAMP`, stages
 replacement state, rejects fallback symlinks, reapplies `0600` to the database
 and `2770`/`0660` to fallback uploads, and restarts Shiny and the mail timer.
 
@@ -166,8 +162,9 @@ newer than the chosen pool snapshot rather than silently dropping it.
 
 ## Backup alerts and capacity
 
-Monitor the systemd unit result, external mount availability, free space,
-artifact age, and checksum verification. A locally created path at the expected
-mount point is not evidence that external storage is mounted. If the mount
-disappears, stop and restore it; do not let a local directory silently become
-the backup destination.
+Monitor the systemd unit result, local disk space, off-host recovery coverage,
+artifact age, and checksum verification. `ppsv-healthcheck.timer` sends a
+change-only email to `PPSV_ALERT_TO` when the weekly backup job fails, becomes
+overdue, or lacks its matching fallback archive. If the relay is unavailable, the alert
+fails visibly in `journalctl -u ppsv-healthcheck.service` and is retried on the
+next run; independent infrastructure monitoring is still required.

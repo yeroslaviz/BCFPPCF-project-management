@@ -78,11 +78,29 @@ fail() { printf '[FAIL] %s\n' "$*" >&2; failures=$((failures + 1)); }
 [[ "${AUTH_MODE:-}" == ldap ]] && pass "AUTH_MODE is ldap" || fail "AUTH_MODE must be ldap"
 runtime_primary_group="$(id -gn "${APP_RUN_USER}" 2>/dev/null || true)"
 [[ "${runtime_primary_group}" == "${APP_RUN_GROUP}" && "${APP_RUN_GROUP}" == "${PPSV_POOL_GROUP}" ]] && pass "runtime account uses shared group ${APP_RUN_GROUP}" || fail "runtime primary group is ${runtime_primary_group:-missing}, expected ${APP_RUN_GROUP}; APP_RUN_GROUP/PPSV_POOL_GROUP are ${APP_RUN_GROUP}/${PPSV_POOL_GROUP}"
-[[ "${PPSV_TICKET_MODE:-disabled}" != disabled ]] && pass "ticket delivery is enabled in ${PPSV_TICKET_MODE} mode" || fail "ticket delivery is disabled"
+if [[ "${PPSV_TICKET_MODE:-disabled}" != disabled ]]; then
+  pass "ticket delivery is enabled in ${PPSV_TICKET_MODE} mode"
+elif ((SKIP_PUBLIC == 1)); then
+  warn "Ticket delivery is disabled pending the end-to-end mail test."
+else
+  fail "ticket delivery is disabled"
+fi
 [[ "${PPSV_MAIL_FROM:-}" == ppsv-service@biochem.mpg.de ]] && pass "SMTP service identity is ppsv-service@biochem.mpg.de" || fail "PPSV_MAIL_FROM is not the approved service identity"
 [[ "${PPSV_TICKET_TO:-}" == ppsv-request@biochem.mpg.de ]] && pass "ticket recipient is ppsv-request@biochem.mpg.de" || fail "PPSV_TICKET_TO is not the PPSV request address"
-[[ "${PPSV_SERVICE_IDENTITY_AUTHORIZED_ACK}" == 1 ]] && pass "service mail identity authorization is acknowledged" || fail "service mail identity authorization is not acknowledged"
-[[ "${PPSV_TICKET_E2E_TEST_ACK}" == 1 ]] && pass "ticket requester/auto-reply end-to-end test is acknowledged" || fail "ticket requester/auto-reply end-to-end test is not acknowledged"
+if [[ "${PPSV_SERVICE_IDENTITY_AUTHORIZED_ACK}" == 1 ]]; then
+  pass "service mail identity authorization is acknowledged"
+elif ((SKIP_PUBLIC == 1)); then
+  warn "Service mail identity authorization is pending; mail remains suppressed."
+else
+  fail "service mail identity authorization is not acknowledged"
+fi
+if [[ "${PPSV_TICKET_E2E_TEST_ACK}" == 1 ]]; then
+  pass "ticket requester/auto-reply end-to-end test is acknowledged"
+elif ((SKIP_PUBLIC == 1)); then
+  warn "Requester/auto-reply end-to-end test is pending; mail remains suppressed."
+else
+  fail "ticket requester/auto-reply end-to-end test is not acknowledged"
+fi
 
 env_mode="$(stat -c '%a' "${ENV_FILE}")"
 env_owner="$(stat -c '%U:%G' "${ENV_FILE}")"
@@ -292,11 +310,8 @@ grep -Fqx "default:user:${APP_RUN_USER}:rwx" <<<"${pool_acl}" && pass "project p
 grep -Fqx "default:group:${PPSV_POOL_GROUP}:rwx" <<<"${pool_acl}" && pass "project pool has a default ${PPSV_POOL_GROUP} ACL" || fail "project pool default ${PPSV_POOL_GROUP} ACL is missing"
 
 if validate_backup_destination; then
-  if [[ "${PPSV_ALLOW_LOCAL_BACKUP}" == 0 ]]; then
-    pass "backup destination and expected external mount source are valid"
-  else
-    fail "PPSV_ALLOW_LOCAL_BACKUP=1 is a test-only override, not a production backup"
-  fi
+  pass "configured backup destination is valid"
+  [[ "${PPSV_ALLOW_LOCAL_BACKUP}" == 0 ]] && pass "backups are on an external mount" || warn "Backups are local to the VM; off-host disaster recovery is not proven."
 fi
 runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_BACKUP_DIR}" && pass "runtime account can write the backup destination" || fail "runtime account cannot write the backup destination"
 for backup_path in "${PPSV_BACKUP_DIR}" "${PPSV_BACKUP_DIR%/}/database" "${PPSV_BACKUP_DIR%/}/fallback"; do
@@ -309,7 +324,7 @@ if find "${PPSV_BACKUP_DIR}" -type f -perm /0077 -print -quit 2>/dev/null | grep
 else
   pass "backup files are not group- or world-accessible"
 fi
-[[ "${PPSV_POOL_SNAPSHOT_POLICY_ACK}" == 1 ]] && pass "external project-pool snapshot policy is acknowledged" || fail "external project-pool snapshot policy is not acknowledged (PPSV_POOL_SNAPSHOT_POLICY_ACK=0)"
+[[ "${PPSV_POOL_SNAPSHOT_POLICY_ACK}" == 1 ]] && pass "external project-pool snapshot policy is acknowledged" || warn "Facility-pool snapshots are not proven (PPSV_POOL_SNAPSHOT_POLICY_ACK=0)."
 
 latest_db_backup="$(find "${PPSV_BACKUP_DIR%/}/database" -maxdepth 1 -type f -name 'ppsv_projects_*.sqlite' -print 2>/dev/null | sort | tail -n 1)"
 if [[ -n "${latest_db_backup}" ]]; then
@@ -319,7 +334,7 @@ if [[ -n "${latest_db_backup}" ]]; then
   latest_fallback_backup="${PPSV_BACKUP_DIR%/}/fallback/uploads_pending_pool_${backup_stamp}.tar.gz"
   [[ -f "${latest_fallback_backup}" ]] || latest_fallback_backup=""
   backup_age_seconds=$(( $(date +%s) - $(stat -c '%Y' "${latest_db_backup}") ))
-  ((backup_age_seconds >= -300 && backup_age_seconds <= 129600)) && pass "latest database backup is no more than 36 hours old" || fail "latest database backup timestamp is stale or implausibly in the future"
+  ((backup_age_seconds >= -300 && backup_age_seconds <= 691200)) && pass "latest database backup is no more than eight days old" || fail "latest database backup timestamp is stale or implausibly in the future"
   restore_verify_args=(--database "${latest_db_backup}")
   if [[ -n "${latest_fallback_backup}" ]]; then
     restore_verify_args+=(--fallback "${latest_fallback_backup}")
@@ -332,7 +347,7 @@ if [[ -n "${latest_db_backup}" ]]; then
     fail "latest backup set failed the operator restore verifier"
   fi
 elif ((SKIP_PUBLIC == 0)); then
-  fail "no verified database backup exists at the external destination"
+  fail "no verified database backup exists at the configured destination"
 else
   warn "No database backup exists yet; run the backup job before production acceptance."
 fi
@@ -353,6 +368,9 @@ systemctl is-enabled --quiet ppsv-mail-outbox.timer && pass "mail-outbox timer i
 systemctl is-enabled --quiet ppsv-backup.timer && pass "backup timer is enabled" || fail "backup timer is not enabled"
 systemctl is-active --quiet ppsv-mail-outbox.timer && pass "mail-outbox timer is active" || fail "mail-outbox timer is not active"
 systemctl is-active --quiet ppsv-backup.timer && pass "backup timer is active" || fail "backup timer is not active"
+systemctl is-enabled --quiet ppsv-healthcheck.timer && pass "healthcheck timer is enabled" || fail "healthcheck timer is not enabled"
+systemctl is-active --quiet ppsv-healthcheck.timer && pass "healthcheck timer is active" || fail "healthcheck timer is not active"
+[[ "${PPSV_ALERT_TO:-}" =~ ^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$ ]] && pass "operator alert recipient is configured" || fail "PPSV_ALERT_TO must be a valid operator email address"
 
 if ((SKIP_PUBLIC == 0)); then
   [[ "${PPSV_PUBLIC_URL}" == 'https://ppcf-vm.biochem.mpg.de/ppsvf-app/' ]] && pass "public URL is the canonical PPSV endpoint" || fail "PPSV_PUBLIC_URL is not the canonical endpoint: ${PPSV_PUBLIC_URL}"

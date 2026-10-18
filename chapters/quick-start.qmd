@@ -59,9 +59,9 @@ openssl rsa -noout -modulus -in private-key.pem | openssl sha256
    `ppsv-service@biochem.mpg.de` for the configured relay account.
 3. A real ticket test has established which requester/auto-reply path works
    without duplicate acknowledgements.
-4. `PPSV_BACKUP_DIR` is an external destination whose exact `findmnt` source is
-   recorded, and the storage team has documented the snapshot/restore policy
-   for `/fs/pool/pool-ppsvf-projects`.
+4. Weekly local backups are stored under `/srv/ppsv-app-data/db-backups`.
+   These do not survive loss of the VM or its disk. Off-host recovery and the
+   facility-pool snapshot policy remain separate infrastructure work.
 
 The system may be installed while a gate is pending, but it must not be called
 production-ready.
@@ -85,9 +85,11 @@ PPSV_PUBLIC_URL=https://ppcf-vm.biochem.mpg.de/ppsvf-app/
 APP_RUN_USER=ppsvf-shiny-user
 APP_RUN_GROUP=b_profa
 PPSV_POOL_GROUP=b_profa
-PPSV_DB_FILE=/srv/ppsvf-app-data/database/ppsv_projects.db
+PPSV_DB_FILE=/srv/ppsv-app-data/database/ppsv_projects.db
 PPSV_POOL_ROOT=/fs/pool/pool-ppsvf-projects
-PPSV_FALLBACK_ROOT=/srv/ppsvf-app-data/uploads_pending_pool
+PPSV_FALLBACK_ROOT=/srv/ppsv-app-data/uploads_pending_pool
+PPSV_BACKUP_DIR=/srv/ppsv-app-data/db-backups
+PPSV_ALLOW_LOCAL_BACKUP=1
 PPSV_POOL_EXPECTED_SOURCE=REQUIRED_FACILITY_POOL_MOUNT_SOURCE
 PPSV_ALLOW_LOCAL_POOL=0
 ```
@@ -96,18 +98,19 @@ Never put SMTP credentials or another secret in the repository or in an
 application-local `.Renviron`. Provisioning installs the environment as
 `/etc/ppsvf-app/ppsvf-app.env`, owned by root and mode `0600`.
 
-Record both external mount sources exactly:
+Record the facility-pool mount source exactly:
 
 ```bash
 findmnt -n -o SOURCE -T /fs/pool/pool-ppsvf-projects
-findmnt -n -o SOURCE -T /the/configured/backup/path
 ```
 
-Set those results as `PPSV_POOL_EXPECTED_SOURCE` and
+Set that result as `PPSV_POOL_EXPECTED_SOURCE`. Local backups do not use
 `PPSV_BACKUP_EXPECTED_SOURCE`. Leave
 `PPSV_SERVICE_IDENTITY_AUTHORIZED_ACK`, `PPSV_TICKET_E2E_TEST_ACK`, and
 `PPSV_POOL_SNAPSHOT_POLICY_ACK` at `0` until the corresponding gate has real
-evidence. Production verification deliberately fails while any remains `0`.
+evidence. Ticket-delivery checks still fail while their acknowledgements are
+`0`; missing off-host backup/pool-snapshot evidence is reported as a warning
+and must not be described as disaster-recovery readiness.
 
 ## Install and preflight Shiny Server
 
@@ -132,16 +135,16 @@ architecture, and checksum. It never downloads a package.
 
 ## Provision idempotently
 
-Mount the project pool and external backup destination first, then run:
+Mount the project pool first, then run:
 
 ```bash
 sudo scripts/provision.sh --env /root/ppsvf-app.env --install-system
 ```
 
-Provisioning validates TLS and both external mount identities before copying or
+Provisioning validates TLS and the facility-pool mount identity before copying or
 changing configuration, creates the private runtime account and persistent
 paths, applies the pool ACL, installs Apache/Shiny templates and systemd units,
-and enables the mail and backup timers. Re-running the command with the same
+and enables the mail, weekly backup, and healthcheck timers. Re-running the command with the same
 reviewed inputs is supported.
 
 ## Deploy an immutable release
@@ -167,6 +170,14 @@ The deploy command:
 7. starts services and runs local deployment checks.
 
 It never imports or migrates `ms_projects.db`.
+
+Create the first local backup before full verification; subsequent backups run
+weekly:
+
+```bash
+sudo systemctl start ppsv-backup.service
+sudo systemctl start ppsv-healthcheck.service
+```
 
 ## Verify before handoff
 
@@ -198,12 +209,15 @@ sudo systemctl start ppsv-mail-outbox.service
 # Reconcile checksum-verified fallback uploads after the pool returns.
 sudo systemctl start ppsv-pool-reconcile.service
 
-# Create the nightly-style verified backup immediately.
+# Run an extra verified local backup when needed; the timer runs weekly.
 sudo systemctl start ppsv-backup.service
+
+# Check health and alert delivery (also runs every five minutes).
+sudo systemctl start ppsv-healthcheck.service
 
 # Inspect recent unit logs.
 sudo journalctl -u shiny-server.service -u ppsv-mail-outbox.service \
-  -u ppsv-backup.service --since today
+  -u ppsv-backup.service -u ppsv-healthcheck.service --since today
 ```
 
 ## Stop conditions
@@ -212,7 +226,7 @@ Stop and investigate instead of weakening the system if any of these occur:
 
 - TLS key, leaf certificate, SAN, expiry, or chain validation fails;
 - the VM is not the reviewed OS/architecture combination;
-- the project pool or external backup destination is not mounted;
+- the project pool is not mounted;
 - the runtime account cannot create `2770` directories and `0660` files;
 - Apache is not the only public route to Shiny;
 - LDAP identity can be supplied through a query string, cookie, or client

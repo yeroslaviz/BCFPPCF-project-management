@@ -20,7 +20,8 @@ inquiries. It includes:
   archive;
 - input and result files stored outside the web root with SHA-256 checksums;
 - PPSV PDF summaries without prices, costs, or invoice data;
-- a durable ticket-mail outbox with recorded delivery attempts; and
+- a durable ticket-mail outbox with recorded delivery attempts;
+- weekly local database/fallback backups and change-only operator health alerts; and
 - an admin user directory for activation, deactivation, and last-login review.
 
 The application deliberately has no sample tables, cost estimates, invoices,
@@ -40,7 +41,7 @@ Mutable state is outside immutable releases:
 |---|---|
 | Active application symlink | `/srv/shiny-server/ppsvf-app` |
 | Immutable releases | `/srv/ppsvf-app/releases` |
-| SQLite database and fallback storage | `/srv/ppsvf-app-data` |
+| SQLite database, fallback uploads, and weekly local backups | `/srv/ppsv-app-data` |
 | Primary request files | `/fs/pool/pool-ppsvf-projects` |
 | Runtime secrets | `/etc/ppsvf-app/ppsvf-app.env` |
 
@@ -48,6 +49,8 @@ Never deploy or migrate the copied `ms_projects.db`. PPSV initializes a fresh
 database at `PPSV_DB_FILE` and subsequently applies only PPSV migrations. Do
 not place a database, upload directory, real secret, or `.Renviron` in
 `ppsvf-app/`.
+Local `db-backups/` copies are not off-host disaster recovery; the facility
+pool also needs its own snapshot/restore policy.
 
 ## Repository layout
 
@@ -97,7 +100,7 @@ by the application repository itself.
 
 1. Resolve the four external readiness gates: the exact matching TLS private
    key, authorization for `ppsv-service@biochem.mpg.de`, a real ticket
-   requester/auto-reply test, and an external backup destination plus facility
+   requester/auto-reply test, and an off-host recovery policy plus facility
    pool-snapshot policy.
 2. Create a root-owned environment file from
    `scripts/ppsvf-app.env.example`; mode must be `0600`.

@@ -1,8 +1,8 @@
 [Unit]
-Description=Create a nightly verified PPSV backup
+Description=Create a weekly verified PPSV local backup
 
 [Timer]
-OnCalendar=*-*-* 02:15:00 Europe/Berlin
+OnCalendar=Sun *-*-* 02:15:00 Europe/Berlin
 RandomizedDelaySec=15min
 Persistent=true
 Unit=ppsv-backup.service
