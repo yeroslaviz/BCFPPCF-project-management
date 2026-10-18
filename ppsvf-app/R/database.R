@@ -9,7 +9,7 @@ ppsv_db_connect <- function(config = ppsv_config()) {
     stop("DBI and RSQLite are required by the PPSV backend.", call. = FALSE)
   }
   directory <- dirname(config$db_file)
-  if (!dir.exists(directory) && !dir.create(directory, recursive = TRUE, mode = "0770")) {
+  if (!dir.exists(directory) && !dir.create(directory, recursive = TRUE, mode = "0700")) {
     stop("Cannot create PPSV database directory: ", directory, call. = FALSE)
   }
   con <- DBI::dbConnect(RSQLite::SQLite(), config$db_file)
@@ -17,7 +17,7 @@ ppsv_db_connect <- function(config = ppsv_config()) {
   DBI::dbExecute(con, "PRAGMA busy_timeout = 10000")
   DBI::dbExecute(con, "PRAGMA journal_mode = WAL")
   for (path in c(config$db_file, paste0(config$db_file, "-wal"), paste0(config$db_file, "-shm"))) {
-    if (file.exists(path)) Sys.chmod(path, mode = "0660", use_umask = FALSE)
+    if (file.exists(path)) Sys.chmod(path, mode = "0600", use_umask = FALSE)
   }
   con
 }
@@ -344,7 +344,7 @@ ppsv_initialize_database <- function(config = ppsv_config(), reset = FALSE) {
     }
     ppsv_seed_reference_data(con)
   }, immediate = TRUE)
-  Sys.chmod(config$db_file, mode = "0660", use_umask = FALSE)
+  Sys.chmod(config$db_file, mode = "0600", use_umask = FALSE)
   normalizePath(config$db_file, winslash = "/", mustWork = TRUE)
 }
 

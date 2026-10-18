@@ -289,16 +289,11 @@ testthat::test_that("the PPSV app contains no legacy database or cost schema art
   testthat::expect_false(any(grepl("cost|invoice|price", c(tables, columns), ignore.case = TRUE)))
   testthat::expect_false("ms_projects" %in% tables)
 
-  repository_files <- list.files(
-    PPSV_TEST_REPO,
-    recursive = TRUE,
-    all.files = TRUE,
-    full.names = FALSE,
-    include.dirs = TRUE
+  repository_files <- system2(
+    "git",
+    c("-C", shQuote(PPSV_TEST_REPO), "ls-files", "--cached", "--others", "--exclude-standard"),
+    stdout = TRUE
   )
-  repository_files <- repository_files[
-    repository_files != ".git" & !startsWith(repository_files, ".git/")
-  ]
   forbidden_repository_paths <- c(
     "(^|/)\\.Renviron$",
     "(^|/)\\.quarto($|/)",

@@ -100,6 +100,11 @@ facility pool matches `PPSV_POOL_EXPECTED_SOURCE`.
 - [ ] Deactivating a non-admin account blocks it; reactivation restores only
   its allowlist-derived role.
 - [ ] `b_profa` membership alone grants no application privilege.
+- [ ] The data parent is root-owned `0750`; the database directory and renv
+  cache are app-owned `0700`. The SQLite database and sidecars are `0600` and
+  cannot be opened by another `b_profa` member.
+- [ ] The external backup directories are app-owned `0700` with `0600` backup
+  files; another `b_profa` member cannot read a backup archive.
 
 ## Three-role authorization exercise
 

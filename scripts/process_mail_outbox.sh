@@ -11,7 +11,7 @@ if [[ "$(id -un)" != "${APP_RUN_USER}" ]]; then
   reexec_as_app "${BASH_SOURCE[0]}"
 fi
 
-umask 0007
+umask 0077
 acquire_lock "${PPSV_DATA_ROOT}/locks/mail-outbox.lock"
 
 APP_DIR="$(validate_active_app_dir)"

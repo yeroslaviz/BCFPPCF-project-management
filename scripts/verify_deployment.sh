@@ -62,6 +62,7 @@ while (($#)); do
 done
 
 require_root
+umask 0077
 load_runtime_env "${ENV_FILE}"
 validate_runtime_paths
 require_command curl
@@ -106,7 +107,14 @@ check_protected_dir() {
   fi
 }
 
-check_protected_dir "${PPSV_DATA_ROOT}" 1770 "persistent data root"
+check_protected_dir "${PPSV_DATA_ROOT}" 750 "persistent data root"
+cache_mode="$(stat -c '%a' "${RENV_PATHS_CACHE}" 2>/dev/null || true)"
+cache_owner="$(stat -c '%U:%G' "${RENV_PATHS_CACHE}" 2>/dev/null || true)"
+[[ -d "${RENV_PATHS_CACHE}" && ! -L "${RENV_PATHS_CACHE}" && "${cache_mode}" == 700 && "${cache_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" ]] && pass "renv cache is runtime-only mode 0700" || fail "renv cache is ${cache_owner:-missing} mode ${cache_mode:-missing}, expected ${APP_RUN_USER}:${APP_RUN_GROUP} 0700"
+db_dir="$(dirname "${PPSV_DB_FILE}")"
+db_dir_mode="$(stat -c '%a' "${db_dir}" 2>/dev/null || true)"
+db_dir_owner="$(stat -c '%U:%G' "${db_dir}" 2>/dev/null || true)"
+[[ -d "${db_dir}" && ! -L "${db_dir}" && "${db_dir_mode}" == 700 && "${db_dir_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" ]] && pass "database directory is runtime-only mode 0700" || fail "database directory is ${db_dir_owner:-missing} mode ${db_dir_mode:-missing}, expected ${APP_RUN_USER}:${APP_RUN_GROUP} 0700"
 check_protected_dir "${PPSV_DATA_ROOT}/deployments" 750 "deployment-record directory"
 check_protected_dir "${PPSV_RELEASES_ROOT}" 750 "immutable releases root"
 check_protected_dir "$(dirname "${PPSV_CURRENT_LINK}")" 750 "active-link parent"
@@ -118,7 +126,7 @@ for lock_name in maintenance.lock mail-outbox.lock; do
   lock_path="${PPSV_DATA_ROOT}/locks/${lock_name}"
   lock_mode="$(stat -c '%a' "${lock_path}" 2>/dev/null || true)"
   lock_owner="$(stat -c '%U:%G' "${lock_path}" 2>/dev/null || true)"
-  [[ "${lock_mode}" == 660 && "${lock_owner}" == "root:${APP_RUN_GROUP}" && ! -L "${lock_path}" ]] && pass "${lock_name} is root-owned and app-group writable" || fail "${lock_name} is ${lock_owner:-missing} mode ${lock_mode:-missing}, expected root:${APP_RUN_GROUP} 660"
+  [[ "${lock_mode}" == 600 && "${lock_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" && ! -L "${lock_path}" ]] && pass "${lock_name} is runtime-only mode 0600" || fail "${lock_name} is ${lock_owner:-missing} mode ${lock_mode:-missing}, expected ${APP_RUN_USER}:${APP_RUN_GROUP} 0600"
 done
 recovery_parent_mode="$(stat -c '%a' "${PPSV_DATA_ROOT}/pre_restore" 2>/dev/null || true)"
 recovery_parent_owner="$(stat -c '%U:%G' "${PPSV_DATA_ROOT}/pre_restore" 2>/dev/null || true)"
@@ -199,12 +207,12 @@ if [[ -f "${PPSV_DB_FILE}" ]]; then
   [[ "${module_count}" == 8 && "${module_order_count}" == 8 ]] && pass "eight active service modules have unique display order 1-8" || fail "service-module seed/order is invalid (${module_count:-?}/${module_order_count:-?})"
   db_mode="$(stat -c '%a' "${PPSV_DB_FILE}")"
   db_owner="$(stat -c '%U:%G' "${PPSV_DB_FILE}")"
-  [[ "${db_mode}" == 660 && "${db_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" ]] && pass "database ownership/mode are ${db_owner} ${db_mode}" || fail "database ownership/mode are ${db_owner} ${db_mode}, expected ${APP_RUN_USER}:${APP_RUN_GROUP} 660"
+  [[ "${db_mode}" == 600 && "${db_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" && ! -L "${PPSV_DB_FILE}" ]] && pass "database ownership/mode are ${db_owner} ${db_mode}" || fail "database ownership/mode are ${db_owner} ${db_mode}, expected ${APP_RUN_USER}:${APP_RUN_GROUP} 600"
   for sqlite_sidecar in "${PPSV_DB_FILE}-wal" "${PPSV_DB_FILE}-shm"; do
     if [[ -e "${sqlite_sidecar}" ]]; then
       sidecar_mode="$(stat -c '%a' "${sqlite_sidecar}")"
       sidecar_owner="$(stat -c '%U:%G' "${sqlite_sidecar}")"
-      [[ "${sidecar_mode}" == 660 && "${sidecar_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" ]] && pass "$(basename "${sqlite_sidecar}") ownership/mode are correct" || fail "$(basename "${sqlite_sidecar}") is ${sidecar_owner} mode ${sidecar_mode}, expected ${APP_RUN_USER}:${APP_RUN_GROUP} 660"
+      [[ "${sidecar_mode}" == 600 && "${sidecar_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" && ! -L "${sqlite_sidecar}" ]] && pass "$(basename "${sqlite_sidecar}") ownership/mode are correct" || fail "$(basename "${sqlite_sidecar}") is ${sidecar_owner} mode ${sidecar_mode}, expected ${APP_RUN_USER}:${APP_RUN_GROUP} 600"
     fi
   done
 else
@@ -291,6 +299,16 @@ if validate_backup_destination; then
   fi
 fi
 runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_BACKUP_DIR}" && pass "runtime account can write the backup destination" || fail "runtime account cannot write the backup destination"
+for backup_path in "${PPSV_BACKUP_DIR}" "${PPSV_BACKUP_DIR%/}/database" "${PPSV_BACKUP_DIR%/}/fallback"; do
+  backup_mode="$(stat -c '%a' "${backup_path}" 2>/dev/null || true)"
+  backup_owner="$(stat -c '%U:%G' "${backup_path}" 2>/dev/null || true)"
+  [[ -d "${backup_path}" && ! -L "${backup_path}" && "${backup_mode}" == 700 && "${backup_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" ]] && pass "backup directory ${backup_path} is runtime-only mode 0700" || fail "backup directory ${backup_path} is ${backup_owner:-missing} mode ${backup_mode:-missing}, expected ${APP_RUN_USER}:${APP_RUN_GROUP} 0700"
+done
+if find "${PPSV_BACKUP_DIR}" -type f -perm /0077 -print -quit 2>/dev/null | grep -q .; then
+  fail "backup files have group or other permissions"
+else
+  pass "backup files are not group- or world-accessible"
+fi
 [[ "${PPSV_POOL_SNAPSHOT_POLICY_ACK}" == 1 ]] && pass "external project-pool snapshot policy is acknowledged" || fail "external project-pool snapshot policy is not acknowledged (PPSV_POOL_SNAPSHOT_POLICY_ACK=0)"
 
 latest_db_backup="$(find "${PPSV_BACKUP_DIR%/}/database" -maxdepth 1 -type f -name 'ppsv_projects_*.sqlite' -print 2>/dev/null | sort | tail -n 1)"

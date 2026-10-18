@@ -199,18 +199,28 @@ else
 fi
 
 install -d -o root -g "${APP_RUN_GROUP}" -m 0750 "${PPSV_RELEASES_ROOT}"
-install -d -o root -g "${APP_RUN_GROUP}" -m 1770 "${PPSV_DATA_ROOT}"
-install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 2770 \
-  "${PPSV_FALLBACK_ROOT}" "${PPSV_DATA_ROOT}/renv-cache"
+[[ ! -L "${PPSV_DATA_ROOT}" && ! -L "${PPSV_DATA_ROOT}/database" && ! -L "${RENV_PATHS_CACHE}" && ! -L "${PPSV_FALLBACK_ROOT}" ]] || die "Refusing a symbolic link in persistent storage."
+[[ ! -e "${PPSV_DATA_ROOT}/ppsv_projects.db" ]] || die "An older group-accessible database exists at ${PPSV_DATA_ROOT}/ppsv_projects.db; move it to the private database directory with services stopped before provisioning."
+install -d -o root -g "${APP_RUN_GROUP}" -m 0750 "${PPSV_DATA_ROOT}"
+install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 "${PPSV_DATA_ROOT}/database"
+install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 "${RENV_PATHS_CACHE}"
+for db_path in "${PPSV_DB_FILE}" "${PPSV_DB_FILE}-wal" "${PPSV_DB_FILE}-shm"; do
+  if [[ -e "${db_path}" || -L "${db_path}" ]]; then
+    [[ -f "${db_path}" && ! -L "${db_path}" ]] || die "Unsafe existing database path: ${db_path}"
+    chown "${APP_RUN_USER}:${APP_RUN_GROUP}" "${db_path}"
+    chmod 0600 "${db_path}"
+  fi
+done
+install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 2770 "${PPSV_FALLBACK_ROOT}"
 install -d -o root -g "${APP_RUN_GROUP}" -m 0750 \
   "${PPSV_DATA_ROOT}/locks" "${PPSV_DATA_ROOT}/deployments" "${PPSV_DATA_ROOT}/pre_restore"
 for lock_file in "${PPSV_DATA_ROOT}/locks/maintenance.lock" "${PPSV_DATA_ROOT}/locks/mail-outbox.lock"; do
   if [[ ! -e "${lock_file}" ]]; then
-    install -o root -g "${APP_RUN_GROUP}" -m 0660 /dev/null "${lock_file}"
+    install -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0600 /dev/null "${lock_file}"
   else
     [[ -f "${lock_file}" && ! -L "${lock_file}" ]] || die "Unsafe pre-existing lock path: ${lock_file}"
-    chown root:"${APP_RUN_GROUP}" "${lock_file}"
-    chmod 0660 "${lock_file}"
+    chown "${APP_RUN_USER}:${APP_RUN_GROUP}" "${lock_file}"
+    chmod 0600 "${lock_file}"
   fi
 done
 install -d -o root -g "${APP_RUN_GROUP}" -m 0750 /srv/shiny-server
@@ -221,8 +231,10 @@ chmod 2770 "${PPSV_POOL_ROOT}"
 setfacl -m "u:${APP_RUN_USER}:rwx,g:${PPSV_POOL_GROUP}:rwx,m:rwx" "${PPSV_POOL_ROOT}"
 setfacl -d -m "u:${APP_RUN_USER}:rwx,g:${PPSV_POOL_GROUP}:rwx,m:rwx" "${PPSV_POOL_ROOT}"
 
-install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0750 \
+[[ ! -L "${PPSV_BACKUP_DIR}/database" && ! -L "${PPSV_BACKUP_DIR}/fallback" ]] || die "Refusing a symbolic link in backup storage."
+install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 \
   "${PPSV_BACKUP_DIR}" "${PPSV_BACKUP_DIR}/database" "${PPSV_BACKUP_DIR}/fallback"
+find "${PPSV_BACKUP_DIR}/database" "${PPSV_BACKUP_DIR}/fallback" -type f -exec chmod 0600 {} +
 runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_BACKUP_DIR}" || die "Runtime user cannot write PPSV_BACKUP_DIR."
 
 install -o root -g root -m 0644 "${TLS_BUNDLE_FILE}" /etc/ssl/certs/ppsvf-app-fullchain.pem

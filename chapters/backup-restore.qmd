@@ -21,6 +21,10 @@ destination. Provisioning rejects a path that resolves to the VM root
 filesystem unless `PPSV_ALLOW_LOCAL_BACKUP=1` is deliberately used on a test
 VM. Production must not use that override.
 
+The backup destination and its `database` and `fallback` directories are owned
+by `ppsvf-shiny-user` and use mode `0700`. Backup files use `0600`, because
+`b_profa` is also the runtime user's primary group.
+
 Set `PPSV_BACKUP_EXPECTED_SOURCE` to the exact reviewed output of:
 
 ```bash
@@ -126,8 +130,8 @@ sudo /usr/local/libexec/ppsvf-app/restore_backup.sh \
 
 The script verifies inputs before stopping services, preserves a pre-restore
 database/fallback copy under `/srv/ppsvf-app-data/pre_restore/TIMESTAMP`, stages
-replacement state, rejects fallback symlinks, reapplies `2770`/`0660`
-permissions, and restarts Shiny and the mail timer.
+replacement state, rejects fallback symlinks, reapplies `0600` to the database
+and `2770`/`0660` to fallback uploads, and restarts Shiny and the mail timer.
 
 After it returns:
 

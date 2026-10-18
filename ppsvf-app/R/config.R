@@ -132,7 +132,7 @@ ppsv_config <- function(overrides = list()) {
   )
   config <- list(
     app_dir = app_dir,
-    db_file = Sys.getenv("PPSV_DB_FILE", file.path(app_dir, "ppsv_projects.db")),
+    db_file = Sys.getenv("PPSV_DB_FILE", "/srv/ppsvf-app-data/database/ppsv_projects.db"),
     pool_root = Sys.getenv("PPSV_POOL_ROOT", "/fs/pool/pool-ppsvf-projects"),
     pool_expected_source = Sys.getenv("PPSV_POOL_EXPECTED_SOURCE", ""),
     allow_local_pool = ppsv_env_flag("PPSV_ALLOW_LOCAL_POOL", FALSE),

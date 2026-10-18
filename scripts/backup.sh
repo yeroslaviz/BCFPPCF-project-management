@@ -11,10 +11,11 @@ if [[ "$(id -un)" != "${APP_RUN_USER}" ]]; then
   reexec_as_app "${BASH_SOURCE[0]}"
 fi
 
-umask 0027
+umask 0077
 require_command sha256sum
 require_command tar
 require_command sqlite3
+validate_private_database_storage
 validate_backup_destination
 acquire_lock "${PPSV_DATA_ROOT}/locks/maintenance.lock"
 
@@ -28,7 +29,7 @@ fi
 
 DB_BACKUP_DIR="${PPSV_BACKUP_DIR%/}/database"
 FALLBACK_BACKUP_DIR="${PPSV_BACKUP_DIR%/}/fallback"
-install -d -m 0750 "${DB_BACKUP_DIR}" "${FALLBACK_BACKUP_DIR}"
+install -d -m 0700 "${DB_BACKUP_DIR}" "${FALLBACK_BACKUP_DIR}"
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 app_dir="$(validate_active_app_dir)"

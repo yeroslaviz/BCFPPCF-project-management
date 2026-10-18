@@ -54,6 +54,7 @@ while (($#)); do
 done
 
 load_runtime_env "${ENV_FILE}"
+umask 0077
 validate_runtime_paths
 [[ -f "${DATABASE_BACKUP}" ]] || die "Database backup not found: ${DATABASE_BACKUP:-<unset>}"
 require_command sha256sum
@@ -75,6 +76,7 @@ log "Backup verification passed."
 ((CONFIRMED == 1)) || die "Applying a restore requires --confirm-data-loss."
 require_root
 [[ ! -L "${PPSV_DATA_ROOT}" && ! -L "${PPSV_DB_FILE}" && ! -L "${PPSV_FALLBACK_ROOT}" ]] || die "Refusing restore through a symbolic-link runtime path."
+validate_private_database_storage
 [[ ! -e "${PPSV_DB_FILE}" || -f "${PPSV_DB_FILE}" ]] || die "Live database path is not a regular file: ${PPSV_DB_FILE}"
 [[ ! -e "${PPSV_FALLBACK_ROOT}" || -d "${PPSV_FALLBACK_ROOT}" ]] || die "Live fallback path is not a directory: ${PPSV_FALLBACK_ROOT}"
 [[ "$(readlink -f "${DATABASE_BACKUP}")" != "$(readlink -f "${PPSV_DB_FILE}" 2>/dev/null || true)" ]] || die "The backup and live database resolve to the same file."
@@ -87,6 +89,7 @@ db_parent="$(dirname "${PPSV_DB_FILE}")"
 fallback_parent="$(dirname "${PPSV_FALLBACK_ROOT}")"
 [[ -d "${recovery_parent}" && ! -L "${recovery_parent}" ]] || die "Protected pre-restore directory is missing: ${recovery_parent}"
 [[ -d "${db_parent}" && ! -L "${db_parent}" ]] || die "Database parent directory is missing or unsafe: ${db_parent}"
+[[ "$(stat -c '%U:%G %a' "${db_parent}")" == "${APP_RUN_USER}:${APP_RUN_GROUP} 700" ]] || die "Database directory must be ${APP_RUN_USER}:${APP_RUN_GROUP} mode 0700: ${db_parent}"
 [[ -d "${fallback_parent}" && ! -L "${fallback_parent}" ]] || die "Fallback parent directory is missing or unsafe: ${fallback_parent}"
 [[ "$(stat -c '%U:%G' "${recovery_parent}")" == "root:${APP_RUN_GROUP}" && "$(stat -c '%a' "${recovery_parent}")" == 750 ]] || die "Pre-restore directory must be root:${APP_RUN_GROUP} mode 0750: ${recovery_parent}"
 recovery_dir="$(mktemp -d "${recovery_parent}/${timestamp}.XXXXXX")"
@@ -204,7 +207,7 @@ if [[ -f "${PPSV_DB_FILE}" ]]; then
 fi
 
 chown "${APP_RUN_USER}:${APP_RUN_GROUP}" "${db_stage}"
-chmod 0660 "${db_stage}"
+chmod 0600 "${db_stage}"
 mv -T "${db_stage}" "${PPSV_DB_FILE}"
 db_stage=""
 db_activated=1

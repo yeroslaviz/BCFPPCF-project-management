@@ -50,7 +50,7 @@ using the active database user and requested record before every read or write.
 | `PPSV_RELEASES_ROOT` | `/srv/ppsvf-app/releases` | Root-owned immutable release directories |
 | `PPSV_CURRENT_LINK` | `/srv/shiny-server/ppsvf-app` | Atomic symlink to the active application |
 | `PPSV_DATA_ROOT` | `/srv/ppsvf-app-data` | Persistent database, locks, fallback, deployment records, renv cache |
-| `PPSV_DB_FILE` | `/srv/ppsvf-app-data/ppsv_projects.db` | Fresh PPSV SQLite database |
+| `PPSV_DB_FILE` | `/srv/ppsvf-app-data/database/ppsv_projects.db` | Fresh PPSV SQLite database in a runtime-only directory |
 | `PPSV_POOL_ROOT` | `/fs/pool/pool-ppsvf-projects` | Primary files, outside the web root |
 | `PPSV_FALLBACK_ROOT` | `/srv/ppsvf-app-data/uploads_pending_pool` | Persistent storage while pool is unavailable |
 
@@ -67,7 +67,7 @@ file is `/etc/ppsvf-app/ppsvf-app.env`, root-owned, not a symlink, and mode
 |---|---|
 | `AUTH_MODE` | `ldap` in production; `test` only in an isolated test harness |
 | `PPSV_PUBLIC_URL` | Canonical `https://ppcf-vm.biochem.mpg.de/ppsvf-app/` URL |
-| `PPSV_DB_FILE` | SQLite path below `PPSV_DATA_ROOT` |
+| `PPSV_DB_FILE` | SQLite path directly inside `PPSV_DATA_ROOT/database` |
 | `PPSV_POOL_ROOT` | Primary facility project pool |
 | `PPSV_POOL_EXPECTED_SOURCE` | Exact reviewed `findmnt` source for the facility pool; provisioning/deployment stop if it changes |
 | `PPSV_FALLBACK_ROOT` | Persistent fallback below `PPSV_DATA_ROOT` |
@@ -140,6 +140,13 @@ supported, stop instead of proceeding partially.
 The application runs as `ppsvf-shiny-user` with primary group `b_profa`. This
 matches the technician pool-access group, but it does not grant application
 roles; roles still come only from the PPSV allowlist and active user records.
+
+The live SQLite database sits in an app-owned `0700` directory and its database,
+WAL, and shared-memory files use `0600`. Database and fallback backups live in
+app-owned `0700` directories with `0600` files. Members of `b_profa` therefore
+cannot edit request data through the database or read backup archives directly.
+The top-level data directory is root-owned and group-read-only (`0750`), and
+the R dependency cache is app-owned with mode `0700`.
 
 Pool and fallback request directories use mode `2770`; stored files use
 `0660`. The pool root receives access and default ACLs for the service user and

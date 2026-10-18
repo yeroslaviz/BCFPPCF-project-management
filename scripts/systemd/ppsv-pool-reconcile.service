@@ -11,6 +11,6 @@ EnvironmentFile=/etc/ppsvf-app/ppsvf-app.env
 Environment=PPSV_ENV_PRELOADED=1
 WorkingDirectory=/srv/shiny-server/ppsvf-app
 ExecStart=/usr/local/libexec/ppsvf-app/reconcile_pool.sh
-UMask=0007
+UMask=0077
 NoNewPrivileges=true
 PrivateTmp=true

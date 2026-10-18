@@ -24,6 +24,15 @@ snapshot policy.
 
 ## Latest repository changes
 
+### 2026-10-18
+
+- Kept `ppsvf-shiny-user` in `b_profa` for project-pool access while moving
+  SQLite into an app-only `0700` directory with `0600` database files.
+- Restricted database backups, maintenance locks, and the R dependency cache
+  so other `b_profa` members cannot use them to bypass application controls.
+- Updated provisioning, deployment, restore, verification, and tests for the
+  private database path and permissions.
+
 ### 09-26-2026
 
 - change the app name from ppsv-app to ppsvf-aap

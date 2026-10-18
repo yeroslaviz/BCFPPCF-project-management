@@ -29,5 +29,5 @@ if (!identical(integrity, "ok")) {
   stop("Backup integrity check failed: ", paste(integrity, collapse = "; "))
 }
 
-Sys.chmod(backup_file, mode = "0660")
+Sys.chmod(backup_file, mode = "0600")
 message("Verified SQLite backup created: ", normalizePath(backup_file, mustWork = TRUE))

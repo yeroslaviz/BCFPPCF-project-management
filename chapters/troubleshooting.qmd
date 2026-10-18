@@ -19,7 +19,7 @@ sudo apache2ctl configtest
 sudo ss -ltnp | grep 3838
 sudo readlink -f /srv/shiny-server/ppsvf-app
 sudo stat -c '%U:%G %a %n' /etc/ppsvf-app/ppsvf-app.env \
-  /srv/ppsvf-app-data/ppsv_projects.db
+  /srv/ppsvf-app-data/database/ppsv_projects.db
 ```
 
 Do not print the entire environment file into a ticket or shared terminal log;
@@ -91,9 +91,9 @@ and deploy a new release; do not edit a database role.
 ## Database startup or migration error
 
 ```bash
-sudo -u ppsvf-shiny-user sqlite3 /srv/ppsvf-app-data/ppsv_projects.db \
+sudo -u ppsvf-shiny-user sqlite3 /srv/ppsvf-app-data/database/ppsv_projects.db \
   'PRAGMA integrity_check; SELECT * FROM schema_migrations ORDER BY version;'
-sudo stat -c '%U:%G %a %n' /srv/ppsvf-app-data/ppsv_projects.db*
+sudo stat -c '%U:%G %a %n' /srv/ppsvf-app-data/database/ppsv_projects.db*
 sudo journalctl -u shiny-server.service -n 150 --no-pager
 ```
 

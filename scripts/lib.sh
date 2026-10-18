@@ -70,7 +70,7 @@ load_runtime_env() {
   export PPSV_RELEASES_ROOT="${PPSV_RELEASES_ROOT:-/srv/ppsvf-app/releases}"
   export PPSV_DATA_ROOT="${PPSV_DATA_ROOT:-/srv/ppsvf-app-data}"
   export PPSV_CURRENT_LINK="${PPSV_CURRENT_LINK:-/srv/shiny-server/ppsvf-app}"
-  export PPSV_DB_FILE="${PPSV_DB_FILE:-${PPSV_DATA_ROOT}/ppsv_projects.db}"
+  export PPSV_DB_FILE="${PPSV_DB_FILE:-${PPSV_DATA_ROOT}/database/ppsv_projects.db}"
   export PPSV_POOL_ROOT="${PPSV_POOL_ROOT:-/fs/pool/pool-ppsvf-projects}"
   export PPSV_FALLBACK_ROOT="${PPSV_FALLBACK_ROOT:-${PPSV_DATA_ROOT}/uploads_pending_pool}"
   export PPSV_PUBLIC_URL="${PPSV_PUBLIC_URL:-https://ppcf-vm.biochem.mpg.de/ppsvf-app/}"
@@ -105,6 +105,7 @@ validate_runtime_paths() {
   require_absolute_path PPSV_DB_FILE "${PPSV_DB_FILE}"
   require_absolute_path PPSV_POOL_ROOT "${PPSV_POOL_ROOT}"
   require_absolute_path PPSV_FALLBACK_ROOT "${PPSV_FALLBACK_ROOT}"
+  require_absolute_path RENV_PATHS_CACHE "${RENV_PATHS_CACHE}"
 
   local path_value
   for path_value in \
@@ -121,10 +122,12 @@ validate_runtime_paths() {
     "${PPSV_DATA_ROOT}"/*) ;;
     *) die "PPSV_DB_FILE must be below PPSV_DATA_ROOT." ;;
   esac
+  [[ "$(dirname "${PPSV_DB_FILE}")" == "${PPSV_DATA_ROOT}/database" ]] || die "PPSV_DB_FILE must be directly inside the private ${PPSV_DATA_ROOT}/database directory."
   case "${PPSV_FALLBACK_ROOT}" in
     "${PPSV_DATA_ROOT}"/*) ;;
     *) die "PPSV_FALLBACK_ROOT must be below PPSV_DATA_ROOT." ;;
   esac
+  [[ "${RENV_PATHS_CACHE}" == "${PPSV_DATA_ROOT}/renv-cache" ]] || die "RENV_PATHS_CACHE must be the private ${PPSV_DATA_ROOT}/renv-cache directory."
 
   case "${AUTH_MODE:-ldap}" in
     ldap|test) ;;
@@ -182,6 +185,26 @@ validate_active_app_dir() {
     *) die "Active PPSV application is outside the immutable release root: ${active_app}" ;;
   esac
   printf '%s\n' "${active_app}"
+}
+
+validate_private_database_storage() {
+  local db_dir db_path db_owner db_mode
+  db_dir="$(dirname "${PPSV_DB_FILE}")"
+  [[ -d "${db_dir}" && ! -L "${db_dir}" ]] || die "Private database directory is missing or symbolic: ${db_dir}"
+  [[ "$(stat -c '%U:%G %a' "${db_dir}")" == "${APP_RUN_USER}:${APP_RUN_GROUP} 700" ]] || die "Database directory must be ${APP_RUN_USER}:${APP_RUN_GROUP} mode 0700: ${db_dir}"
+  for db_path in "${PPSV_DB_FILE}" "${PPSV_DB_FILE}-wal" "${PPSV_DB_FILE}-shm"; do
+    if [[ -e "${db_path}" || -L "${db_path}" ]]; then
+      [[ -f "${db_path}" && ! -L "${db_path}" ]] || die "Database path is not a regular non-symlink file: ${db_path}"
+      db_owner="$(stat -c '%U:%G' "${db_path}")"
+      db_mode="$(stat -c '%a' "${db_path}")"
+      [[ "${db_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" && "${db_mode}" == 600 ]] || die "Database file must be ${APP_RUN_USER}:${APP_RUN_GROUP} mode 0600: ${db_path}"
+    fi
+  done
+}
+
+validate_private_renv_cache() {
+  [[ -d "${RENV_PATHS_CACHE}" && ! -L "${RENV_PATHS_CACHE}" ]] || die "Private renv cache is missing or symbolic: ${RENV_PATHS_CACHE}"
+  [[ "$(stat -c '%U:%G %a' "${RENV_PATHS_CACHE}")" == "${APP_RUN_USER}:${APP_RUN_GROUP} 700" ]] || die "renv cache must be ${APP_RUN_USER}:${APP_RUN_GROUP} mode 0700: ${RENV_PATHS_CACHE}"
 }
 
 validate_backup_destination() {

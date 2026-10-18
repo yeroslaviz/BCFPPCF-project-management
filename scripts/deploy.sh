@@ -43,6 +43,7 @@ while (($#)); do
 done
 
 require_root
+umask 0077
 load_runtime_env "${ENV_FILE}"
 validate_runtime_paths
 acquire_lock "/run/lock/ppsv-deploy.lock" 8
@@ -63,6 +64,8 @@ SOURCE_APP="${SOURCE_ROOT}/ppsvf-app"
 
 getent passwd "${APP_RUN_USER}" >/dev/null || die "Runtime account does not exist: ${APP_RUN_USER}"
 [[ "$(id -gn "${APP_RUN_USER}")" == "${APP_RUN_GROUP}" ]] || die "Runtime account does not use group ${APP_RUN_GROUP}."
+validate_private_database_storage
+validate_private_renv_cache
 validate_pool_destination
 runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_POOL_ROOT}" || die "Runtime account cannot write the project pool."
 runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_FALLBACK_ROOT}" || die "Runtime account cannot write fallback storage."
@@ -195,7 +198,7 @@ log "Applying transactional database migrations."
 )
 [[ -f "${PPSV_DB_FILE}" ]] || die "Database initializer did not create ${PPSV_DB_FILE}."
 chown "${APP_RUN_USER}:${APP_RUN_GROUP}" "${PPSV_DB_FILE}"
-chmod 0660 "${PPSV_DB_FILE}"
+chmod 0600 "${PPSV_DB_FILE}"
 
 printf '%s\n' "${git_revision}" >"${STAGING_ROOT}/REVISION"
 (

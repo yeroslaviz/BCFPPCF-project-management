@@ -16,7 +16,7 @@ ppsv_test_context <- function(ticket_mode = "disabled", direct_ack = FALSE,
   if (pool) dir.create(pool_root)
   config <- ppsv_config(list(
     app_dir = file.path(PPSV_TEST_REPO, "ppsvf-app"),
-    db_file = file.path(root, "ppsv.sqlite"),
+    db_file = file.path(root, "database", "ppsv.sqlite"),
     pool_root = pool_root,
     pool_expected_source = "",
     allow_local_pool = TRUE,

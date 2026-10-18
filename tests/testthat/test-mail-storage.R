@@ -573,7 +573,8 @@ testthat::test_that("stored files and directories use private modes", {
   testthat::expect_equal(as.character(file.info(stored)$mode), "660")
   testthat::expect_equal(as.character(file.info(dirname(stored))$mode), "770")
   testthat::expect_equal(as.character(file.info(dirname(dirname(stored)))$mode), "770")
-  testthat::expect_equal(as.character(file.info(ctx$config$db_file)$mode), "660")
+  testthat::expect_equal(as.character(file.info(dirname(ctx$config$db_file))$mode), "700")
+  testthat::expect_equal(as.character(file.info(ctx$config$db_file)$mode), "600")
 
   # file.info omits special permission bits. On Linux CI, assert setgid using
   # stat as well; macOS development sandboxes commonly strip that bit.
