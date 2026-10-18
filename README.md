@@ -20,6 +20,8 @@ inquiries. It includes:
   archive;
 - input and result files stored outside the web root with SHA-256 checksums;
 - PPSV PDF summaries without prices, costs, or invoice data;
+- staff-reviewed acceptance emails with a PDF report saved among project results
+  and attached for the requester;
 - a durable ticket-mail outbox with recorded delivery attempts;
 - weekly local database/fallback backups and change-only operator health alerts; and
 - an admin user directory for activation, deactivation, and last-login review.

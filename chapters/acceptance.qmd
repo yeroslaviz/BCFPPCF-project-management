@@ -152,6 +152,12 @@ administrator.
   round-trip correctly; history records actor, UTC timestamp, and note.
 - [ ] The PPSV PDF contains request/module, contact/scientific fields, current
   status/history, and file manifest, with no cost/invoice content.
+- [ ] A technician/admin can review the verified recipient, edit the acceptance
+  message, and queue one acceptance email with the saved PDF attached. A normal
+  status change does not send the email, and requesters cannot invoke the action.
+- [ ] The acceptance report is visible as a result file, survives fallback
+  reconciliation, and is reused unchanged on retry. Missing or changed PDFs
+  block delivery; failures leave acceptance/delivery state clear to staff.
 
 ## Mail exercise
 

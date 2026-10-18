@@ -35,6 +35,7 @@ separated under `ppsvf-app/R/`:
 | `validation.R` | service and inquiry form contracts |
 | `repository.R` | authorized reads and administrative queries |
 | `lifecycle.R` | request creation, edits, status/assignment, archives, files |
+| `acceptance.R` | staff acceptance, persistent PDF snapshots, and confirmation queueing |
 | `storage.R` | safe names, checksums, pool/fallback storage, reconciliation |
 | `mail.R` | deterministic ticket/acknowledgement planning and SMTP transport |
 | `outbox_repository.R` | durable outbox state, attempts, retries, admin retry |
@@ -125,8 +126,13 @@ but does not provide off-host disaster recovery. `PPSV_ALLOW_LOCAL_POOL=1` and
 
 The normalized schema contains users and LDAP profiles, the eight service
 modules, common requests, one-to-one protein or inquiry details, files, status
-history, the durable mail outbox, and delivery attempts. The current status is
-constrained to the seven PPSV statuses.
+history, the durable mail outbox, attachment links, and delivery attempts. The
+current status is constrained to the seven PPSV statuses.
+
+Schema version 4 adds acceptance messages and attachment links while preserving
+existing outbox IDs and delivery attempts. Releases supporting only schema 3
+cannot run against the migrated database; use a schema-4-compatible release for
+code rollback. Database restore remains a separate operator action.
 
 The first production deployment creates `PPSV_DB_FILE` only when absent.
 Existing PPSV databases are migrated sequentially inside transactions. A

@@ -323,6 +323,34 @@ ppsv_outbox_finish <- function(con, message, succeeded, error = NULL,
   invisible(TRUE)
 }
 
+# Resolve by file ID immediately before each attempt. Fallback reconciliation
+# can move the file after queueing; the stored path is never frozen in mail.
+ppsv_outbox_resolve_attachments <- function(con, message, config) {
+  files <- DBI::dbGetQuery(
+    con,
+    paste(
+      "SELECT a.file_id,f.request_id,f.original_name,f.absolute_path,",
+      "f.storage_location,f.sha256 FROM mail_attachments a",
+      "LEFT JOIN request_files f ON f.id=a.file_id WHERE a.outbox_id=? ORDER BY a.file_id"
+    ),
+    params = list(message$id)
+  )
+  if (nrow(files) && any(is.na(files$request_id) | files$request_id != message$request_id)) {
+    ppsv_abort("Mail attachment does not belong to this request.", "ppsv_storage_error")
+  }
+  if (identical(message$message_kind, "acceptance") && !nrow(files)) {
+    ppsv_abort("Acceptance confirmation has no saved PDF attachment.", "ppsv_storage_error")
+  }
+  message$attachments <- vapply(seq_len(nrow(files)), function(i) {
+    ppsv_validate_stored_path(
+      files$absolute_path[[i]], files$storage_location[[i]], config,
+      expected_sha256 = files$sha256[[i]]
+    )
+  }, character(1L))
+  message$attachment_names <- files$original_name
+  message
+}
+
 ppsv_process_mail_outbox <- function(limit = 25L, send_fun = ppsv_default_mail_sender,
                                      now = Sys.time(), ctx = ppsv_default_context()) {
   con <- ppsv_db_connect(ctx$config)
@@ -334,6 +362,7 @@ ppsv_process_mail_outbox <- function(limit = 25L, send_fun = ppsv_default_mail_s
     processed <- processed + 1L
     outcome <- tryCatch(
       {
+        message <- ppsv_outbox_resolve_attachments(con, message, ctx$config)
         value <- send_fun(message, ctx$config)
         normalized <- ppsv_normalize_send_result(value)
         list(ok = normalized$success, value = normalized$value, error = normalized$error)

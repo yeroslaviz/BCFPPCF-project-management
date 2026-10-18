@@ -17,7 +17,7 @@ ppsv_env_flag <- function(name, default = FALSE) {
 PPSV_FACILITY_NAME <- "Protein Production and Structural Validation Facility"
 PPSV_FACILITY_EMAIL <- "ppsv-request@biochem.mpg.de"
 PPSV_FACILITY_PHONE <- "+49 89 8578-3629"
-PPSV_SCHEMA_VERSION <- 3L
+PPSV_SCHEMA_VERSION <- 4L
 
 PPSV_STATUS_OPTIONS <- c(
   "Submitted",

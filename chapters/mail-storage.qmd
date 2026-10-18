@@ -53,6 +53,45 @@ The acknowledgement includes a ticket-link sentence only if the ticket adapter
 returns a real ticket URL. An application request URL is not presented as a
 ticket URL.
 
+## Staff acceptance and attached PDF report
+
+Receipt acknowledgements confirm submission only. To approve a project and
+notify its requester, a technician or administrator opens the request and
+selects **Accept and send confirmation** under **Staff actions**. This action
+is available for Submitted, Under review, and Accepted requests. Selecting
+Accepted through the ordinary status control does not send mail.
+
+The review dialog shows the requester's current verified LDAP email and an
+editable confirmation message. Confirming sets the status to Accepted and
+queues a separate acceptance email with a PDF report attached. The report
+captures the contact and scientific/inquiry data, Accepted status and history,
+and active file manifest at acceptance time. It is saved as a result file in:
+
+```text
+/fs/pool/pool-ppsvf-projects/PPSV000001/results/<generated-name>.pdf
+```
+
+The user-facing download and attachment name is
+`PPSV000001-acceptance.pdf`. The stored report uses the normal checksum,
+permissions, cumulative storage limit, fallback, reconciliation, and authorized
+download mechanisms. When the pool is unavailable, it is saved in the
+corresponding fallback results directory instead. A report-generation,
+storage, or queueing failure rolls back the acceptance and removes any staged
+report. Archived files are excluded from the shared report.
+
+Staff acceptance is independent of `PPSV_DIRECT_ACK`; it still requires enabled,
+authorized mail delivery and a current verified LDAP recipient. Editable form
+contact email is never used as the recipient. It is sent from the service
+identity with the facility ticket address as Reply-To. A changed LDAP address requires
+staff to review the recipient again before confirming.
+
+The acceptance action queues at most one confirmation per request. Delivery
+failures are recorded and retried by the outbox worker; administrators can
+manually retry a failed acceptance from the delivery log. Each attempt uses
+the same saved PDF snapshot, including after fallback reconciliation. Missing
+or modified attachments block sending and appear as delivery failures. Later
+request edits do not replace the saved report.
+
 ## Required SMTP and ticket decision test
 
 Use a dedicated real LDAP test account and a non-production test request. Keep

@@ -502,6 +502,7 @@ server <- function(input, output, session) {
   staff_data <- reactiveVal(data.frame())
   selected_request_id <- reactiveVal(NULL)
   selected_request <- reactiveVal(NULL)
+  acceptance_review <- reactiveVal(NULL)
   flash_error <- reactiveVal(NULL)
 
   request_headers <- function() {
@@ -1084,7 +1085,7 @@ server <- function(input, output, session) {
         tags$section(class = "content-card", tags$div(class = "card-heading", tags$div(tags$h2("Files"), tags$p("Inputs and results associated with this request."))), uiOutput("file_controls"), tableOutput("files_table"))
       ),
       uiOutput("staff_controls"),
-      tags$section(class = "content-card", tags$div(class = "card-heading", tags$div(tags$h2("Ticket delivery"), tags$p("Submission mail and acknowledgement attempts are recorded here."))), uiOutput("mail_controls"), tableOutput("request_mail_table"))
+      tags$section(class = "content-card", tags$div(class = "card-heading", tags$div(tags$h2("Mail delivery"), tags$p("Submission, acknowledgement, and project acceptance attempts are recorded here."))), uiOutput("mail_controls"), tableOutput("request_mail_table"))
     )
   }
 
@@ -1357,7 +1358,12 @@ server <- function(input, output, session) {
     can_status <- can_do("change_status", detail)
     can_assign <- can_do("assign_request", detail)
     can_archive <- can_do("archive_request", detail)
-    if (!can_status && !can_assign && !can_archive) return(NULL)
+    can_accept <- can_do("accept_request", detail)
+    mail <- record_list(detail)$mail
+    acceptance_exists <- is.data.frame(mail) && "message_kind" %in% names(mail) &&
+      any(mail$message_kind == "acceptance", na.rm = TRUE)
+    acceptance_recipient <- field_value(detail, "acceptance_recipient")
+    if (!can_status && !can_assign && !can_archive && !can_accept) return(NULL)
 
     users <- staff_data()
     if (nrow(users) == 0L && can_assign) refresh_staff()
@@ -1374,9 +1380,26 @@ server <- function(input, output, session) {
     tags$section(
       class = "content-card staff-card",
       tags$div(class = "card-heading", tags$div(tags$h2("Staff actions"), tags$p("Changes are authorized and recorded by the backend."))),
+      if (can_accept) tags$div(
+        class = "staff-action-row",
+        tags$div(
+          class = "staff-action-copy",
+          tags$h3("Project acceptance"),
+          tags$p(if (acceptance_exists) {
+            "An acceptance confirmation has already been queued. See its status in the delivery log."
+          } else if (!nzchar(acceptance_recipient)) {
+            "The requester needs a verified LDAP email address before an acceptance confirmation can be sent."
+          } else {
+            "Review the message, accept the project, and send the requester a PDF report."
+          })
+        ),
+        if (!acceptance_exists && nzchar(acceptance_recipient)) actionButton(
+          "review_acceptance", "Accept and send confirmation", class = "btn btn-primary"
+        )
+      ),
       if (can_status) tags$div(
         class = "staff-action-row",
-        tags$div(class = "staff-action-copy", tags$h3("Update status"), tags$p("Add an optional note to the audit trail.")),
+        tags$div(class = "staff-action-copy", tags$h3("Update status"), tags$p("Add an optional note to the audit trail. Status updates alone do not send email.")),
         tags$div(
           class = "staff-action-inputs",
           selectInput("new_status", "Status", choices = PPSV_STATUSES, selected = field_value(detail, "status", field_value(detail, "current_status"))),
@@ -1399,6 +1422,51 @@ server <- function(input, output, session) {
         actionButton("archive_request", "Archive", class = "btn btn-danger")
       )
     )
+  })
+
+  observeEvent(input$review_acceptance, {
+    detail <- selected_request()
+    req(detail)
+    call_with_notice({
+      detail <- backend_call("get_request", id = request_identifier(detail), user = identity())
+      require_permission("accept_request", detail)
+      recipient <- field_value(detail, "acceptance_recipient")
+      if (!nzchar(recipient)) stop("The requester does not have a verified LDAP email address.", call. = FALSE)
+      acceptance_review(list(id = request_identifier(detail), recipient = recipient))
+      showModal(modalDialog(
+        title = paste("Accept", request_code(detail)),
+        tags$p("To: ", tags$strong(recipient), " (verified LDAP email)"),
+        textAreaInput(
+          "acceptance_message", "Confirmation message",
+          value = backend_call("ppsv_format_acceptance", request = record_list(detail)),
+          width = "100%", rows = 12
+        ),
+        tags$p("The PDF report will be saved with the project's result files and attached to this email."),
+        easyClose = FALSE,
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("confirm_acceptance", "Accept and send confirmation", class = "btn btn-primary")
+        )
+      ))
+    }, refresh = FALSE)
+  })
+
+  observeEvent(input$confirm_acceptance, {
+    review <- acceptance_review()
+    req(review)
+    result <- call_with_notice({
+      detail <- backend_call("get_request", id = review$id, user = identity())
+      require_permission("accept_request", detail)
+      backend_call(
+        "accept_request", id = review$id, message = input$acceptance_message,
+        recipient = review$recipient, user = identity()
+      )
+    }, success = "Project accepted. Confirmation email with the PDF report was queued for delivery.")
+    if (!is.null(result)) {
+      acceptance_review(NULL)
+      removeModal()
+      refresh_detail()
+    }
   })
 
   observeEvent(input$save_status, {
@@ -1556,7 +1624,7 @@ server <- function(input, output, session) {
   mail_page_ui <- function() {
     tags$div(
       class = "page-wrap",
-      tags$div(class = "page-title-row", tags$div(tags$p("OPERATIONS", class = "eyebrow"), tags$h1("Delivery log"), tags$p("Ticket messages, acknowledgements and retry state across visible requests.", class = "hero-lead"))),
+      tags$div(class = "page-title-row", tags$div(tags$p("OPERATIONS", class = "eyebrow"), tags$h1("Delivery log"), tags$p("Ticket messages, acknowledgements, project acceptance and retry state across visible requests.", class = "hero-lead"))),
       tags$section(
         class = "content-card",
         tags$div(class = "card-heading", tags$div(tags$h2("Mail outbox"), tags$p("A saved request is not presented as delivered until mail succeeds.")), actionButton("refresh_mail_log", icon("rotate"), class = "btn btn-default icon-button")),

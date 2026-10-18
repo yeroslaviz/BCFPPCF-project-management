@@ -218,7 +218,7 @@ verify_sqlite_backup "${PPSV_DB_FILE}"
     RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" Rscript setup_database.R
 )
 restored_schema_version="$(sqlite3 "${PPSV_DB_FILE}" 'SELECT COALESCE(MAX(version),0) FROM schema_migrations;')"
-[[ "${restored_schema_version}" == 3 ]] || die "Restored database did not migrate to current schema version 3."
+[[ "${restored_schema_version}" == 4 ]] || die "Restored database did not migrate to current schema version 4."
 
 if [[ -n "${FALLBACK_BACKUP}" ]]; then
   chown -R "${APP_RUN_USER}:${APP_RUN_GROUP}" "${fallback_stage}"

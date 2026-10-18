@@ -18,7 +18,8 @@ ppsv_backend_dir <- if (!is.null(ppsv_loader_file)) {
 
 for (ppsv_backend_file in c(
   "config.R", "auth.R", "validation.R", "database.R", "context.R",
-  "repository.R", "storage.R", "mail.R", "outbox_repository.R", "lifecycle.R", "pdf.R"
+  "repository.R", "storage.R", "mail.R", "outbox_repository.R", "lifecycle.R", "pdf.R",
+  "acceptance.R"
 )) {
   source(file.path(ppsv_backend_dir, ppsv_backend_file), local = FALSE)
 }

@@ -261,16 +261,28 @@ ppsv_format_acknowledgement <- function(request, ticket_url = "") {
   paste(c(lines, "", "Yours sincerely,", "The PPSV Team"), collapse = "\n")
 }
 
-ppsv_mail_message <- function(from, to, subject, body, reply_to = "", kind = "ticket") {
+ppsv_mail_message <- function(from, to, subject, body, reply_to = "", kind = "ticket",
+                              attachments = character(), attachment_names = NULL) {
   if (!ppsv_email_is_valid(from)) stop("from must be a valid email address", call. = FALSE)
   if (!ppsv_email_is_valid(to)) stop("to must be a valid email address", call. = FALSE)
   if (!nzchar(trimws(subject))) stop("subject is required", call. = FALSE)
   if (nzchar(reply_to) && !ppsv_email_is_valid(reply_to)) {
     stop("reply_to must be empty or a valid email address", call. = FALSE)
   }
+  attachments <- as.character(attachments %||% character())
+  if (anyNA(attachments) || any(!nzchar(attachments))) {
+    stop("attachment paths must be nonempty", call. = FALSE)
+  }
+  if (is.null(attachment_names)) attachment_names <- basename(attachments)
+  attachment_names <- as.character(attachment_names)
+  if (length(attachment_names) != length(attachments) || anyNA(attachment_names) ||
+      any(!nzchar(attachment_names)) || any(grepl("[\r\n]", attachment_names))) {
+    stop("attachment names must match the attachment paths", call. = FALSE)
+  }
   list(
     kind = kind, from = trimws(from), to = trimws(to),
-    reply_to = trimws(reply_to), subject = trimws(subject), body = body
+    reply_to = trimws(reply_to), subject = trimws(subject), body = body,
+    attachments = attachments, attachment_names = attachment_names
   )
 }
 
@@ -323,9 +335,17 @@ ppsv_plan_ticket_messages <- function(request, module = NULL, details = NULL,
   )
 }
 
-ppsv_mailr_send <- function(message, settings = ppsv_mail_settings()) {
-  if (!requireNamespace("mailR", quietly = TRUE)) {
-    stop("The mailR package is not installed", call. = FALSE)
+ppsv_mailr_send <- function(message, settings = ppsv_mail_settings(), send_mail = NULL) {
+  # mailR treats a body matching a local filename as a request to read that file.
+  # Staff-edited message text must never select a server file for transmission.
+  if (file.exists(ppsv_mail_scalar(message$body))) {
+    stop("Mail body must contain message text rather than a server file path.", call. = FALSE)
+  }
+  if (is.null(send_mail)) {
+    if (!requireNamespace("mailR", quietly = TRUE)) {
+      stop("The mailR package is not installed", call. = FALSE)
+    }
+    send_mail <- mailR::send.mail
   }
   smtp <- settings$smtp
   authenticate <- nzchar(ppsv_mail_scalar(smtp$user.name))
@@ -339,7 +359,11 @@ ppsv_mailr_send <- function(message, settings = ppsv_mail_settings()) {
     send = TRUE, encoding = "utf-8", html = FALSE
   )
   if (nzchar(ppsv_mail_scalar(message$reply_to))) args$replyTo <- message$reply_to
-  do.call(mailR::send.mail, args)
+  if (length(message$attachments)) {
+    args$attach.files <- message$attachments
+    args$file.names <- message$attachment_names %||% basename(message$attachments)
+  }
+  do.call(send_mail, args)
   list(success = TRUE, ticket_url = NULL)
 }
 
@@ -417,7 +441,7 @@ ppsv_mail_retry_delay_seconds <- function(attempt_number) {
   PPSV_RETRY_DELAYS_SECONDS[[attempt_number]]
 }
 
-ppsv_default_mail_sender <- function(message, config) {
+ppsv_default_mail_sender <- function(message, config, send_fun = ppsv_mailr_send) {
   settings <- ppsv_mail_settings(config = config)
   if (identical(settings$mode, "disabled")) {
     stop("Ticket delivery is currently disabled by PPSV_TICKET_MODE.", call. = FALSE)
@@ -447,7 +471,9 @@ ppsv_default_mail_sender <- function(message, config) {
   mail <- ppsv_mail_message(
     from = message$from_address, to = message$recipient,
     subject = message$subject, body = message$body,
-    reply_to = ppsv_mail_scalar(message$reply_to), kind = message$message_kind
+    reply_to = ppsv_mail_scalar(message$reply_to), kind = message$message_kind,
+    attachments = message$attachments %||% character(),
+    attachment_names = message$attachment_names
   )
-  ppsv_mailr_send(mail, settings)
+  send_fun(mail, settings)
 }

@@ -53,6 +53,15 @@ list_requests <- function(user, include_archived = FALSE, ctx = ppsv_default_con
 ppsv_request_detail_from_connection <- function(con, row) {
   result <- as.list(row[1L, , drop = FALSE])
   request_id <- as.integer(result$id)
+  # Acceptance mail uses the current verified LDAP profile, never an editable
+  # request contact field. Expose the same recipient for the staff review UI.
+  owner <- DBI::dbGetQuery(
+    con, "SELECT email,ldap_email_verified FROM users WHERE username=?",
+    params = list(result$owner_username)
+  )
+  result$acceptance_recipient <- if (nrow(owner) &&
+      identical(as.integer(owner$ldap_email_verified[[1L]]), 1L) &&
+      ppsv_valid_email(owner$email[[1L]])) tolower(owner$email[[1L]]) else ""
   if (identical(result$request_kind, "service")) {
     module <- DBI::dbGetQuery(
       con,

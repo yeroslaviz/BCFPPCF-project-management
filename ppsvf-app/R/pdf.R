@@ -35,6 +35,39 @@ ppsv_pdf_first <- function(record, names, default = "") {
   default
 }
 
+# Measure on the active PDF device so proportional fonts, long sequences, and
+# URLs all stay inside their column. Unbroken words are split without losing
+# characters; explicit paragraph breaks remain visible.
+ppsv_pdf_wrap_text <- function(text, width, cex, font = 1L) {
+  paragraphs <- strsplit(gsub("\r\n?", "\n", text), "\n", fixed = TRUE)[[1L]]
+  if (!length(paragraphs)) return("")
+  unlist(lapply(paragraphs, function(remaining) {
+    if (!nzchar(remaining)) return("")
+    lines <- character()
+    while (nzchar(remaining)) {
+      if (graphics::strwidth(remaining, units = "user", cex = cex, font = font) <= width) {
+        lines <- c(lines, remaining)
+        break
+      }
+      low <- 1L
+      high <- nchar(remaining)
+      # Find the longest prefix whose rendered width fits the column.
+      while (low < high) {
+        middle <- ceiling((low + high) / 2)
+        measured <- graphics::strwidth(substr(remaining, 1L, middle), units = "user", cex = cex, font = font)
+        if (measured <= width) low <- middle else high <- middle - 1L
+      }
+      count <- low
+      prefix <- substr(remaining, 1L, count)
+      spaces <- gregexpr("[[:space:]]", prefix)[[1L]]
+      if (any(spaces > 1L)) count <- max(spaces[spaces > 1L])
+      lines <- c(lines, sub("[[:space:]]+$", "", substr(remaining, 1L, count)))
+      remaining <- sub("^[[:space:]]+", "", substring(remaining, count + 1L))
+    }
+    lines
+  }), use.names = FALSE)
+}
+
 ppsv_pdf_open_device <- function(file) {
   directory <- dirname(file)
   if (!dir.exists(directory) && !dir.create(directory, recursive = TRUE)) {
@@ -154,7 +187,8 @@ ppsv_write_request_pdf <- function(request, details = list(), status_history = d
   }
 
   section <- function(title, subtitle = "") {
-    ensure_space(if (nzchar(subtitle)) 0.075 else 0.052)
+    # Keep the section heading with at least a two-line first field.
+    ensure_space((if (nzchar(subtitle)) 0.073 else 0.047) + 0.069)
     graphics::rect(0.055, y - 0.034, 0.945, y + 0.008, col = pale, border = NA)
     graphics::rect(0.055, y - 0.034, 0.062, y + 0.008, col = teal, border = NA)
     graphics::text(0.075, y - 0.011, title, adj = c(0, 0.5), cex = 0.90, font = 2, col = navy)
@@ -165,38 +199,54 @@ ppsv_write_request_pdf <- function(request, details = list(), status_history = d
     }
   }
 
-  field <- function(label, value, width = 92L, show_blank = FALSE) {
+  field <- function(label, value, show_blank = FALSE) {
     value <- ppsv_pdf_scalar(value)
     if (!nzchar(trimws(value))) {
       if (!show_blank) return(invisible(NULL))
       value <- "Not provided"
     }
-    value <- gsub("\r\n?", "\n", value)
-    chunks <- unlist(strsplit(value, "\n", fixed = TRUE), use.names = FALSE)
-    split_long_line <- function(text) {
-      if (nchar(text, type = "width") <= width) return(text)
-      starts <- seq.int(1L, nchar(text), by = width)
-      vapply(starts, function(start) substr(text, start, start + width - 1L), character(1L))
+    wrapped <- ppsv_pdf_wrap_text(value, width = 0.57, cex = 0.65)
+    label_lines <- ppsv_pdf_wrap_text(label, width = 0.275, cex = 0.61, font = 2L)
+    first <- TRUE
+    while (length(wrapped) || length(label_lines)) {
+      if (!first && !length(label_lines) && length(wrapped)) {
+        label_lines <- ppsv_pdf_wrap_text(paste(label, "(continued)"), width = 0.275, cex = 0.61, font = 2L)
+      }
+      height <- 0.029 + 0.020 * max(length(wrapped), length(label_lines))
+      # Normal fields stay together. A field longer than a page is rendered in
+      # bounded chunks with its label repeated on the following page.
+      if (height <= 0.842 - 0.075) {
+        ensure_space(height)
+      } else {
+        ensure_space(0.029 + 0.020 * min(max(length(label_lines), 1L), 2L))
+      }
+      capacity <- max(1L, floor((y - 0.075 - 0.029) / 0.020))
+      count <- min(max(length(wrapped), length(label_lines)), capacity)
+      value_count <- min(length(wrapped), count)
+      label_count <- min(length(label_lines), count)
+      if (label_count) {
+        graphics::text(
+          rep(0.065, label_count), y - (seq_len(label_count) - 1L) * 0.020,
+          label_lines[seq_len(label_count)], adj = c(0, 1), cex = 0.61, font = 2, col = teal
+        )
+        label_lines <- label_lines[-seq_len(label_count)]
+      }
+      if (value_count) {
+        graphics::text(
+          rep(0.36, value_count), y - (seq_len(value_count) - 1L) * 0.020,
+          wrapped[seq_len(value_count)], adj = c(0, 1), cex = 0.65, col = ink
+        )
+        wrapped <- wrapped[-seq_len(value_count)]
+      }
+      y <<- y - 0.029 - 0.020 * count
+      first <- FALSE
+      if (length(wrapped) || length(label_lines)) new_page()
     }
-    wrapped <- unlist(lapply(chunks, function(chunk) {
-      if (!nzchar(chunk)) return("")
-      lines <- strwrap(chunk, width = width, simplify = FALSE)[[1L]]
-      unlist(lapply(lines, split_long_line), use.names = FALSE)
-    }), use.names = FALSE)
-    if (!length(wrapped)) wrapped <- ""
-    height <- 0.021 + 0.020 * length(wrapped) + 0.008
-    ensure_space(height)
-    graphics::text(0.065, y, label, adj = c(0, 1), cex = 0.61, font = 2, col = teal)
-    graphics::text(
-      0.36, y, paste(wrapped, collapse = "\n"),
-      adj = c(0, 1), cex = 0.65, col = ink
-    )
-    y <<- y - height
     invisible(NULL)
   }
 
   note <- function(text) {
-    wrapped <- strwrap(ppsv_pdf_scalar(text), width = 105L)
+    wrapped <- ppsv_pdf_wrap_text(ppsv_pdf_scalar(text), width = 0.87, cex = 0.62)
     height <- max(0.035, length(wrapped) * 0.019 + 0.012)
     ensure_space(height)
     graphics::text(
@@ -260,7 +310,7 @@ ppsv_write_request_pdf <- function(request, details = list(), status_history = d
     related <- ppsv_pdf_first(module, c("name"), ppsv_pdf_first(details, c("related_service_name", "related_service_module_slug")))
     field("Related service", related, show_blank = TRUE)
     field("Subject", ppsv_pdf_first(details, c("subject", "inquiry_subject"), ppsv_pdf_value(request, "inquiry_subject")), show_blank = TRUE)
-    field("Message", ppsv_pdf_first(details, c("message", "inquiry_message"), ppsv_pdf_value(request, "inquiry_message")), width = 88L, show_blank = TRUE)
+    field("Message", ppsv_pdf_first(details, c("message", "inquiry_message"), ppsv_pdf_value(request, "inquiry_message")), show_blank = TRUE)
   } else {
     section("Scientific request")
     service_fields <- c(
@@ -277,7 +327,7 @@ ppsv_write_request_pdf <- function(request, details = list(), status_history = d
       if (identical(name, "tag_removal_required") && nzchar(value)) {
         value <- switch(value, `1` = "Yes", `0` = "No", value)
       }
-      field(ppsv_pdf_label(name), value, width = if (grepl("sequence|references|construct", name)) 84L else 92L)
+      field(ppsv_pdf_label(name), value)
     }
   }
 
@@ -293,13 +343,13 @@ ppsv_write_request_pdf <- function(request, details = list(), status_history = d
       heading <- paste(Filter(nzchar, c(event_time, event_status, if (nzchar(actor)) paste("by", actor) else "")), collapse = "  |  ")
       field("Event", heading, show_blank = TRUE)
       event_note <- ppsv_pdf_value(row, "note")
-      if (nzchar(event_note)) field("Note", event_note, width = 88L)
+      if (nzchar(event_note)) field("Note", event_note)
     }
   }
 
   section("File manifest")
   if (!nrow(files)) {
-    note("No files attached.")
+    note("No request files recorded at report generation.")
   } else {
     for (index in seq_len(nrow(files))) {
       row <- files[index, , drop = FALSE]
@@ -311,7 +361,7 @@ ppsv_write_request_pdf <- function(request, details = list(), status_history = d
       manifest <- paste0(category, " | ", size, " bytes")
       if (nzchar(checksum)) manifest <- paste0(manifest, " | SHA-256 ", checksum)
       if (nzchar(archive)) manifest <- paste0(manifest, " | archived ", archive)
-      field(name, manifest, width = 78L, show_blank = TRUE)
+      field(name, manifest, show_blank = TRUE)
     }
   }
 

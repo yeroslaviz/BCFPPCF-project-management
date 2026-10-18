@@ -58,6 +58,7 @@ repository functions. Hiding a button is only a usability feature.
 | Add an input file to own non-closed request | Yes | Yes | Yes |
 | Add input/results to any non-archived request | No | Yes | Yes |
 | Change status and add history note | No | Yes | Yes |
+| Accept a project and queue its confirmation with PDF | No | Yes | Yes |
 | Assign a technician or admin | No | Yes | Yes |
 | Download an authorized file or PDF | Own only | Yes | Yes |
 | See own request's ticket state | Own only | Yes | Yes |

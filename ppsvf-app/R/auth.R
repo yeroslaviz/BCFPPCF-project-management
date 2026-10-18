@@ -98,6 +98,8 @@ can <- function(user, action, request = NULL) {
     edit_request = !archived && (staff || (owner && !closed)),
     add_file = !archived && (staff || (owner && !closed)),
     change_status = staff && !archived,
+    accept_request = staff && !closed && !is.null(request) &&
+      ppsv_trim(request$current_status) %in% c("Submitted", "Under review", "Accepted"),
     assign_request = staff && !archived,
     archive_request = admin && !archived,
     archive_file = admin,

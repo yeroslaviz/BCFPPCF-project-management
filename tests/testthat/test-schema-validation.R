@@ -1,6 +1,6 @@
 testthat::test_that("fresh schema, migrations, seeds, and vocabulary are exact", {
   ctx <- ppsv_test_context()
-  testthat::expect_equal(ppsv_db_query(ctx, "SELECT version FROM schema_migrations ORDER BY version")$version, 1:3)
+  testthat::expect_equal(ppsv_db_query(ctx, "SELECT version FROM schema_migrations ORDER BY version")$version, 1:4)
   modules <- list_service_modules(ctx = ctx)
   expected_modules <- data.frame(
     slug = c(
@@ -100,7 +100,7 @@ testthat::test_that("supported prior schemas migrate transactionally without los
   testthat::expect_equal(migrated$message, "Migration payload")
   testthat::expect_equal(
     ppsv_db_query(list(config = cfg), "SELECT version FROM schema_migrations ORDER BY version")$version,
-    1:3
+    1:4
   )
 
   con <- ppsv_db_connect(cfg)

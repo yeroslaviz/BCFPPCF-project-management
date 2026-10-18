@@ -219,7 +219,7 @@ if [[ -f "${PPSV_DB_FILE}" ]]; then
   db_foreign_keys="$(runuser -u "${APP_RUN_USER}" -- sqlite3 "${PPSV_DB_FILE}" 'PRAGMA foreign_key_check;' 2>/dev/null || true)"
   [[ -z "${db_foreign_keys}" ]] && pass "SQLite foreign-key check returned no violations" || fail "SQLite foreign-key violations found: ${db_foreign_keys}"
   schema_version="$(runuser -u "${APP_RUN_USER}" -- sqlite3 "${PPSV_DB_FILE}" 'SELECT COALESCE(MAX(version),0) FROM schema_migrations;' 2>/dev/null || true)"
-  [[ "${schema_version}" == 3 ]] && pass "database schema version is 3" || fail "database schema version is ${schema_version:-unavailable}, expected 3"
+  [[ "${schema_version}" == 4 ]] && pass "database schema version is 4" || fail "database schema version is ${schema_version:-unavailable}, expected 4"
   module_count="$(runuser -u "${APP_RUN_USER}" -- sqlite3 "${PPSV_DB_FILE}" 'SELECT count(*) FROM service_modules WHERE active=1;' 2>/dev/null || true)"
   module_order_count="$(runuser -u "${APP_RUN_USER}" -- sqlite3 "${PPSV_DB_FILE}" 'SELECT count(DISTINCT display_order) FROM service_modules WHERE active=1 AND display_order BETWEEN 1 AND 8;' 2>/dev/null || true)"
   [[ "${module_count}" == 8 && "${module_order_count}" == 8 ]] && pass "eight active service modules have unique display order 1-8" || fail "service-module seed/order is invalid (${module_count:-?}/${module_order_count:-?})"

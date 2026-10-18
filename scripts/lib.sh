@@ -315,11 +315,15 @@ verify_sqlite_backup() {
   [[ -z "${foreign_keys}" ]] || die "SQLite foreign-key check failed for ${database}: ${foreign_keys}"
   schema_version="$(sqlite3 -readonly "${database_uri}" 'SELECT COALESCE(MAX(version),0) FROM schema_migrations;' 2>/dev/null || true)"
   case "${schema_version}" in
-    1|2|3) ;;
-    *) die "Expected a supported PPSV schema version (1, 2, or 3) in ${database}; found ${schema_version:-none}." ;;
+    1|2|3|4) ;;
+    *) die "Expected a supported PPSV schema version (1, 2, 3, or 4) in ${database}; found ${schema_version:-none}." ;;
   esac
   table_count="$(sqlite3 -readonly "${database_uri}" "SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('users','service_modules','requests','protein_submissions','inquiries','request_files','status_history','mail_outbox','mail_attempts');" 2>/dev/null || true)"
   [[ "${table_count}" == 9 ]] || die "Required PPSV tables are missing from ${database}."
+  if [[ "${schema_version}" == 4 ]]; then
+    table_count="$(sqlite3 -readonly "${database_uri}" "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='mail_attachments';" 2>/dev/null || true)"
+    [[ "${table_count}" == 1 ]] || die "PPSV mail attachments table is missing from ${database}."
+  fi
 }
 
 verify_fallback_archive() {

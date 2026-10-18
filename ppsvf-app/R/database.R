@@ -246,6 +246,66 @@ ppsv_apply_migration_v3 <- function(con) {
   )
 }
 
+ppsv_apply_migration_v4 <- function(con) {
+  # Rebuild both related tables while foreign keys remain enabled. Replace the
+  # child before dropping its parent so every delivery attempt is preserved
+  # without dropping a table that is still referenced by the old child.
+  sequences <- DBI::dbGetQuery(
+    con,
+    "SELECT name,seq FROM sqlite_sequence WHERE name IN ('mail_outbox','mail_attempts')"
+  )
+  outbox_sql <- ppsv_schema_statements_v1()
+  outbox_sql <- outbox_sql[grepl("^CREATE TABLE mail_outbox ", outbox_sql)]
+  outbox_sql <- sub("CREATE TABLE mail_outbox ", "CREATE TABLE mail_outbox_v4 ", outbox_sql, fixed = TRUE)
+  outbox_sql <- sub(
+    "('ticket','acknowledgement')", "('ticket','acknowledgement','acceptance')",
+    outbox_sql, fixed = TRUE
+  )
+  DBI::dbExecute(con, outbox_sql)
+  DBI::dbExecute(con, "INSERT INTO mail_outbox_v4 SELECT * FROM mail_outbox")
+  DBI::dbExecute(
+    con,
+    "CREATE TABLE mail_attempts_v4 (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       outbox_id INTEGER NOT NULL REFERENCES mail_outbox_v4(id) ON DELETE RESTRICT,
+       attempt_number INTEGER NOT NULL,
+       attempted_at TEXT NOT NULL,
+       succeeded INTEGER NOT NULL CHECK (succeeded IN (0,1)),
+       error_message TEXT
+     )"
+  )
+  DBI::dbExecute(con, "INSERT INTO mail_attempts_v4 SELECT * FROM mail_attempts")
+  DBI::dbExecute(con, "DROP TABLE mail_attempts")
+  DBI::dbExecute(con, "DROP TABLE mail_outbox")
+  DBI::dbExecute(con, "ALTER TABLE mail_outbox_v4 RENAME TO mail_outbox")
+  DBI::dbExecute(con, "ALTER TABLE mail_attempts_v4 RENAME TO mail_attempts")
+  DBI::dbExecute(con, "CREATE INDEX idx_outbox_due ON mail_outbox(status, next_attempt_at)")
+  for (i in seq_len(nrow(sequences))) {
+    DBI::dbExecute(
+      con,
+      "INSERT INTO sqlite_sequence(name,seq) SELECT ?,? WHERE NOT EXISTS (SELECT 1 FROM sqlite_sequence WHERE name=?)",
+      params = list(sequences$name[[i]], sequences$seq[[i]], sequences$name[[i]])
+    )
+    DBI::dbExecute(
+      con, "UPDATE sqlite_sequence SET seq=MAX(seq,?) WHERE name=?",
+      params = list(sequences$seq[[i]], sequences$name[[i]])
+    )
+  }
+  DBI::dbExecute(
+    con,
+    "CREATE TABLE mail_attachments (
+       outbox_id INTEGER NOT NULL REFERENCES mail_outbox(id) ON DELETE RESTRICT,
+       file_id INTEGER NOT NULL REFERENCES request_files(id) ON DELETE RESTRICT,
+       PRIMARY KEY (outbox_id,file_id)
+     )"
+  )
+  DBI::dbExecute(
+    con,
+    "INSERT INTO schema_migrations(version, applied_at) VALUES (4, ?)",
+    params = list(ppsv_now())
+  )
+}
+
 ppsv_seed_reference_data <- function(con) {
   module_sql <- paste(
     "INSERT INTO service_modules(slug,name,description,url,display_order,active)",
@@ -338,6 +398,10 @@ ppsv_initialize_database <- function(config = ppsv_config(), reset = FALSE) {
     if (identical(as.integer(version), 2L)) {
       ppsv_apply_migration_v3(con)
       version <- 3L
+    }
+    if (identical(as.integer(version), 3L)) {
+      ppsv_apply_migration_v4(con)
+      version <- 4L
     }
     if (!identical(as.integer(version), PPSV_SCHEMA_VERSION)) {
       stop("Unsupported PPSV database schema version: ", version, call. = FALSE)

@@ -42,7 +42,7 @@ def collect_issues(settings, now=None):
                 if connection.execute("PRAGMA quick_check").fetchone()[0] != "ok":
                     issues["database"] = "SQLite quick_check failed."
                 elif connection.execute("SELECT count(*) FROM mail_outbox WHERE status='failed'").fetchone()[0]:
-                    issues["mail_outbox"] = "At least one ticket/acknowledgement message exhausted automatic delivery attempts."
+                    issues["mail_outbox"] = "At least one ticket, acknowledgement, or acceptance message has a delivery failure."
                 tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
                 if "request_files" in tables:
                     missing = 0
