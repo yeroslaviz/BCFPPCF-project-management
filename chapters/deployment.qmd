@@ -117,8 +117,10 @@ listen 3838 127.0.0.1;
 
 The port-80 site redirects every request to HTTPS. The HTTPS site redirects `/`
 to `/ppsvf-app/`, authenticates that location with LDAP, strips client identity
-headers, injects the server-authenticated profile, and proxies ordinary HTTP
-and WebSocket upgrades to loopback.
+headers/cookies, canonicalizes the `auth_user` query from authenticated
+`REMOTE_USER` (the working MS/NGS handoff for Shiny Server Open Source), and
+proxies ordinary HTTP and WebSocket upgrades to loopback. The protected runtime
+environment must set `TRUST_PROXY_AUTH_USER_QUERY=1`.
 
 Do not expose 3838, place a second unauthenticated proxy in front of it, or
 enable a test/local login on the production host.

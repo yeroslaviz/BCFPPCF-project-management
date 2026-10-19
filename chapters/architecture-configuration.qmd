@@ -11,7 +11,7 @@ The public request path is:
 ```text
 browser
   -> HTTPS Apache virtual host
-  -> LDAP authentication and trusted profile headers
+  -> LDAP authentication and Apache-canonicalized auth_user query identity
   -> HTTP/WebSocket proxy to 127.0.0.1:3838
   -> Shiny UI/server composition
   -> authorization and lifecycle functions

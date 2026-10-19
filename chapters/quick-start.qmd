@@ -94,6 +94,7 @@ Production invariants are:
 
 ```ini
 AUTH_MODE=ldap
+TRUST_PROXY_AUTH_USER_QUERY=1
 PPSV_PUBLIC_URL=https://ppcf-vm.biochem.mpg.de/ppsvf-app/
 APP_RUN_USER=ppsvf-shiny-user
 APP_RUN_GROUP=b_profa
@@ -244,7 +245,7 @@ Stop and investigate instead of weakening the system if any of these occur:
 - the project pool is not mounted;
 - the runtime account cannot create `2770` directories and `0660` files;
 - Apache is not the only public route to Shiny;
-- LDAP identity can be supplied through a query string, cookie, or client
-  header;
+- LDAP identity arrives through the Apache-canonicalized `auth_user` query
+  string; cookies and client-supplied headers cannot select it;
 - the dependency lock cannot be restored cleanly; or
 - a backup cannot be verified or restored on a disposable test target.

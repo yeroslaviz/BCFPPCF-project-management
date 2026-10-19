@@ -32,10 +32,12 @@ price lists, data-release workflow, or permanent-purge operation.
 ## Security and data boundaries
 
 Apache is the only public entry point. It authenticates against LDAP, removes
-client-supplied identity headers, injects the authenticated identity, and
-proxies HTTP and WebSocket traffic to Shiny Server on loopback. Production must
-use `AUTH_MODE=ldap`; test-mode identities are only for automated tests and
-local development.
+client-supplied identity headers, canonicalizes the authenticated LDAP
+username into the `auth_user` query (the MS/NGS Shiny Server Open Source
+handoff), and proxies HTTP and WebSocket traffic to Shiny Server on loopback.
+Production must use `AUTH_MODE=ldap` and
+`TRUST_PROXY_AUTH_USER_QUERY=1`; test-mode identities are only for automated
+tests and local development.
 
 Mutable state is outside immutable releases:
 

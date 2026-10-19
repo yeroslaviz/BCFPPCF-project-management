@@ -17,10 +17,19 @@ location it injects values obtained from the successful LDAP request:
 - `X-Remote-Group` from the configured organizational attribute; and
 - `X-Remote-Phone` from the LDAP telephone attribute.
 
-The application accepts that trusted proxy identity only when `AUTH_MODE=ldap`.
-There is no production identity through query parameters, cookies, form fields,
-local passwords, or default credentials. If Apache does not provide a valid
-authenticated username, the application fails closed.
+The application accepts the canonical `auth_user` query value only when
+`AUTH_MODE=ldap` and `TRUST_PROXY_AUTH_USER_QUERY=1`. Apache creates that value
+from the successful request's `REMOTE_USER` and redirects both missing and
+tampered values to the canonical URL. Shiny Server Open Source does not expose
+arbitrary proxy headers to `session$request`, which is why this matches the
+working MS/NGS method. The application never reads identity from cookies, form
+fields, local passwords, or default credentials. Direct Shiny access remains
+loopback-only; bypassing Apache would bypass this identity trust boundary.
+
+The username is consequently visible in the browser URL and may appear in
+access logs. Do not put tokens, passwords, email addresses, or other secrets in
+the query string. LDAP profile headers are still used when available; an
+unavailable header is not substituted from editable form data.
 
 Usernames are normalized case-insensitively. LDAP profile values and their
 verification flags are synchronized at login, and the application records the
@@ -104,7 +113,9 @@ Before handoff, prove all of the following:
    receives an LDAP challenge rather than administrator access.
 2. An authenticated request with that same forged header is represented as the
    real LDAP user, because Apache removed and replaced the header.
-3. Query strings and cookies cannot select another identity.
+3. An authenticated request with `?auth_user=forged-admin` receives a redirect
+   whose `Location` contains the authenticated LDAP username, never the forged
+   value. An `auth_user` cookie does not select identity.
 4. Direct network access to port 3838 is unavailable off-host.
 5. A forged Shiny event or direct request ID is rejected by backend
    authorization when the record belongs to another user.

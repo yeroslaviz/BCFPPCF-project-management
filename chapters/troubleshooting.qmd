@@ -89,10 +89,12 @@ sudo grep -n 'RequestHeader.*X-Remote' \
 sudo tail -n 100 /var/log/apache2/ppsvf-app-ssl-error.log
 ```
 
-`AUTH_MODE` must be `ldap`. Apache must remove client identity headers at
-virtual-host scope and set authenticated values inside the protected location.
-Do not add an identity query string, cookie, app-local login, default password,
-or `.Renviron` workaround.
+`AUTH_MODE` must be `ldap` and `TRUST_PROXY_AUTH_USER_QUERY=1`. Apache must
+authenticate the route, remove client identity headers, and canonicalize
+`auth_user` from the authenticated `REMOTE_USER` as in the MS/NGS vhosts. The
+app uses that canonical query value because Shiny Server Open Source does not
+forward arbitrary headers into R. Cookies are stripped and never used. Keep
+Shiny Server's listener loopback-only; never expose port 3838 directly.
 
 If an LDAP attribute is legitimately absent, name/email may be entered manually
 and remain unverified. That is different from a missing authenticated username,

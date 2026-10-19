@@ -34,6 +34,27 @@ ppsv_identity_from_headers <- function(headers = list()) {
   ppsv_normalize_username(candidate)
 }
 
+# Shiny Server Open Source does not expose arbitrary proxy headers to the
+# Shiny request object. PPSV therefore uses the same guarded canonical-query
+# handoff as the MS/NGS apps: Apache LDAP-authenticates the request and rewrites
+# auth_user to REMOTE_USER before proxying. This helper deliberately does not
+# inspect cookies or any other client-provided identity source.
+ppsv_proxy_query_username <- function(query_string, enabled = FALSE) {
+  if (!isTRUE(enabled) || is.null(query_string) || length(query_string) != 1L ||
+      is.na(query_string) || !nzchar(trimws(query_string))) return("")
+  query_string <- sub("^\\?", "", as.character(query_string))
+  pairs <- strsplit(query_string, "&", fixed = TRUE)[[1L]]
+  keys <- vapply(pairs, function(pair) {
+    key <- strsplit(pair, "=", fixed = TRUE)[[1L]][1L]
+    utils::URLdecode(key)
+  }, character(1))
+  values <- pairs[keys == "auth_user"]
+  if (length(values) != 1L) return("")
+  value <- sub("^[^=]*=", "", values[[1L]])
+  value <- utils::URLdecode(gsub("\\+", " ", value))
+  tryCatch(ppsv_normalize_username(value), error = function(error) "")
+}
+
 ppsv_user_as_list <- function(user) {
   if (is.data.frame(user)) {
     if (nrow(user) != 1L) ppsv_abort("Expected exactly one user.", "ppsv_authentication_error")

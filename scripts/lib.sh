@@ -146,6 +146,9 @@ validate_runtime_paths() {
     ldap|test) ;;
     *) die "AUTH_MODE must be ldap or test." ;;
   esac
+  if [[ "${AUTH_MODE:-ldap}" == ldap ]]; then
+    [[ "${TRUST_PROXY_AUTH_USER_QUERY:-0}" == 1 ]] || die "Production LDAP mode requires TRUST_PROXY_AUTH_USER_QUERY=1 for the Apache canonical identity handoff."
+  fi
   case "${PPSV_TICKET_MODE:-disabled}" in
     disabled|service_reply_to|ldap_from) ;;
     *) die "PPSV_TICKET_MODE must be disabled, service_reply_to, or ldap_from." ;;

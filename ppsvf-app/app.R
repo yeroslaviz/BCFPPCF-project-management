@@ -515,8 +515,19 @@ server <- function(input, output, session) {
         HTTP_X_REMOTE_PHONE = Sys.getenv("PPSV_TEST_PHONE", "+49 000")
       ))
     }
+    forwarded_username <- scalar_text(session$request$HTTP_X_REMOTE_USER)
+    if (!nzchar(trimws(forwarded_username)) &&
+        identical(app_context$config$auth_mode, "ldap") &&
+        tolower(trimws(Sys.getenv("TRUST_PROXY_AUTH_USER_QUERY", "0"))) %in% c("1", "true", "yes", "on")) {
+      url_search <- scalar_text(session$clientData$url_search)
+      if (!nzchar(trimws(url_search))) url_search <- scalar_text(session$request$QUERY_STRING)
+      forwarded_username <- ppsv_proxy_query_username(
+        url_search,
+        enabled = TRUE
+      )
+    }
     list(
-      HTTP_X_REMOTE_USER = session$request$HTTP_X_REMOTE_USER %||% NULL,
+      HTTP_X_REMOTE_USER = if (nzchar(forwarded_username)) forwarded_username else NULL,
       REMOTE_USER = session$request$REMOTE_USER %||% NULL,
       HTTP_X_REMOTE_NAME = session$request$HTTP_X_REMOTE_NAME %||% NULL,
       HTTP_X_REMOTE_EMAIL = session$request$HTTP_X_REMOTE_EMAIL %||% NULL,
@@ -529,9 +540,10 @@ server <- function(input, output, session) {
     if (!is.null(app_context) && identical(app_context$config$auth_mode, "test")) {
       return(tolower(trim_scalar(Sys.getenv("PPSV_TEST_USER", "testuser"))))
     }
+    headers <- request_headers()
     candidates <- c(
-      scalar_text(session$request$HTTP_X_REMOTE_USER),
-      scalar_text(session$request$REMOTE_USER)
+      scalar_text(headers$HTTP_X_REMOTE_USER),
+      scalar_text(headers$REMOTE_USER)
     )
     candidates <- trimws(candidates[nzchar(trimws(candidates))])
     if (length(candidates) == 0L) return("")
@@ -543,26 +555,9 @@ server <- function(input, output, session) {
     tolower(username)
   }
 
-  log_missing_identity_diagnostic <- function() {
-    request <- session$request
-    request_names <- names(request) %||% character()
-    relevant_names <- request_names[grepl("REMOTE|USER", request_names, ignore.case = TRUE)]
-    has_value <- function(value) {
-      length(value) > 0L && !is.null(value) && !is.na(value[[1L]]) && nzchar(trimws(as.character(value[[1L]])))
-    }
-    message(
-      "[PPSV auth] identity missing in Shiny request; ",
-      "HTTP_X_REMOTE_USER_present=", has_value(request$HTTP_X_REMOTE_USER),
-      "; HTTP_REMOTE_USER_present=", has_value(request$HTTP_REMOTE_USER),
-      "; REMOTE_USER_present=", has_value(request$REMOTE_USER),
-      "; related_request_fields=", if (length(relevant_names)) paste(relevant_names, collapse = ",") else "<none>"
-    )
-  }
-
   load_identity <- function() {
     username <- remote_username()
     if (!nzchar(username)) {
-      log_missing_identity_diagnostic()
       identity(NULL)
       identity_error("No authenticated LDAP identity was supplied by Apache.")
       return(invisible(NULL))
@@ -584,7 +579,15 @@ server <- function(input, output, session) {
     invisible(user)
   }
 
-  load_identity()
+  if (!is.null(app_context) && identical(app_context$config$auth_mode, "test")) {
+    load_identity()
+  } else {
+    # clientData$url_search is populated by the browser handshake; observing
+    # it ensures canonical Apache auth_user is available before login.
+    observeEvent(session$clientData$url_search, {
+      load_identity()
+    }, once = TRUE, ignoreInit = FALSE)
+  }
 
   call_with_notice <- function(expr, success = NULL, refresh = TRUE) {
     tryCatch(
@@ -722,7 +725,7 @@ server <- function(input, output, session) {
             icon("shield-halved"),
             tags$div(
               tags$strong("LDAP identity not available"),
-              tags$p(identity_error() %||% "Apache did not provide an authenticated user header. Please reopen the secure application URL or contact PPSV.")
+              tags$p(identity_error() %||% "Apache did not provide a canonical authenticated LDAP identity. Please reopen the secure application URL or contact PPSV.")
             )
           ),
           tags$p(class = "contact-line", tags$a("ppsv-request@biochem.mpg.de", href = "mailto:ppsv-request@biochem.mpg.de"), " · +49 89 8578-3629")

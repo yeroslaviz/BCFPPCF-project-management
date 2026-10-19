@@ -107,7 +107,9 @@ The facility pool must match `PPSV_POOL_EXPECTED_SOURCE`.
   bypass LDAP.
 - [ ] The same header on an authenticated request is replaced by the real LDAP
   identity.
-- [ ] A query parameter or cookie cannot choose or replace identity.
+- [ ] An authenticated `?auth_user=forged-admin` request redirects to the
+  canonical authenticated LDAP username; an `auth_user` cookie cannot choose
+  identity.
 - [ ] Production environment contains `AUTH_MODE=ldap`; there is no local
   password or default credential.
 - [ ] Deactivating a non-admin account blocks it; reactivation restores only

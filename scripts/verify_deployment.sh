@@ -88,6 +88,7 @@ pass() { printf '[PASS] %s\n' "$*"; }
 fail() { printf '[FAIL] %s\n' "$*" >&2; failures=$((failures + 1)); }
 
 [[ "${AUTH_MODE:-}" == ldap ]] && pass "AUTH_MODE is ldap" || fail "AUTH_MODE must be ldap"
+[[ "${TRUST_PROXY_AUTH_USER_QUERY:-0}" == 1 ]] && pass "canonical LDAP query identity handoff is enabled" || fail "TRUST_PROXY_AUTH_USER_QUERY must be 1"
 runtime_r_version="$("${PPSV_R_BIN}/Rscript" --vanilla -e 'cat(as.character(getRversion()))' 2>/dev/null || true)"
 [[ "${runtime_r_version}" == 4.6.1 ]] && pass "PPSV Rscript is 4.6.1 at ${PPSV_R_BIN}" || fail "PPSV Rscript is ${runtime_r_version:-unavailable}, expected 4.6.1"
 shiny_environment="$(systemctl show shiny-server.service --property=Environment --value 2>/dev/null || true)"
@@ -389,12 +390,13 @@ else
 fi
 
 apache2ctl configtest >/dev/null 2>&1 && pass "Apache configuration syntax is valid" || fail "Apache configuration syntax is invalid"
-for module in authnz_ldap headers proxy proxy_http proxy_wstunnel rewrite ssl; do
+for module in authnz_ldap headers proxy proxy_http proxy_wstunnel rewrite setenvif ssl; do
   apache2ctl -M 2>/dev/null | grep -q "${module}_module" && pass "Apache module ${module} is loaded" || fail "Apache module ${module} is missing"
 done
 
 grep -Fq 'RequestHeader unset X-Remote-User early' /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf && pass "client identity header is stripped before proxying" || fail "active vhost does not strip X-Remote-User"
-grep -Fq 'RequestHeader set X-Remote-User "expr=%{reqenv:AUTHENTICATE_UID}"' /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf && pass "proxied username comes from authenticated LDAP uid" || fail "active vhost does not inject username from the authenticated LDAP uid"
+grep -Fq 'RewriteRule ^ /ppsvf-app/?auth_user=%{ENV:AUTH_CANONICAL_USER} [R=302,L,NE,QSD]' /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf && pass "canonical auth_user URL is rewritten from authenticated REMOTE_USER" || fail "active vhost does not canonicalize auth_user from LDAP REMOTE_USER"
+grep -Fq 'RequestHeader edit Cookie "(^|;\\s*)auth_user=[^;]*" ""' /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf && pass "client auth_user cookies are stripped" || fail "active vhost does not strip auth_user cookies"
 for profile_header in X-Remote-Name X-Remote-Email X-Remote-Group X-Remote-Phone; do
   grep -Fq "RequestHeader unset ${profile_header} early" /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf || fail "active vhost does not strip ${profile_header}"
 done
@@ -448,10 +450,28 @@ if ((SKIP_PUBLIC == 0)); then
   fi
 
   if ((${#auth_curl_args[@]})); then
-    auth_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 "${auth_curl_args[@]}" https://ppcf-vm.biochem.mpg.de/ppsvf-app/ || true)"
-    [[ "${auth_status}" =~ ^(2|3)[0-9][0-9]$ ]] && pass "LDAP-authenticated application route returned ${auth_status}" || fail "LDAP-authenticated route returned ${auth_status:-no response}"
+    auth_headers="$(curl --silent --show-error --dump-header - --output /dev/null --max-time 30 "${auth_curl_args[@]}" https://ppcf-vm.biochem.mpg.de/ppsvf-app/ || true)"
+    auth_status="$(awk 'toupper($1) ~ /^HTTP\// { code=$2 } END { print code }' <<<"${auth_headers}")"
+    auth_location="$(awk 'tolower($1)=="location:" {sub(/\r$/, "", $2); location=$2} END {print location}' <<<"${auth_headers}")"
+    ldap_login="${LDAP_USER}"
+    if [[ -n "${NETRC_FILE}" ]]; then
+      ldap_login="$(awk '{for (i=1; i<NF; i++) if ($i=="login") {print $(i+1); exit}}' "${NETRC_FILE}")"
+    fi
+    if [[ "${auth_status}" == 302 && "${auth_location}" == "/ppsvf-app/?auth_user=${ldap_login}" ]]; then
+      pass "LDAP-authenticated route redirects to canonical auth_user URL"
+    else
+      fail "LDAP-authenticated route returned ${auth_status:-no response} with Location ${auth_location:-<missing>}, expected canonical auth_user for ${ldap_login:-supplied LDAP user}"
+    fi
     spoof_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 "${auth_curl_args[@]}" -H 'X-Remote-User: forged-admin' https://ppcf-vm.biochem.mpg.de/ppsvf-app/ || true)"
     [[ "${spoof_status}" =~ ^(2|3)[0-9][0-9]$ ]] && pass "authenticated request survives replacement of a forged identity header" || fail "authenticated spoof test returned ${spoof_status:-no response}"
+    query_headers="$(curl --silent --show-error --dump-header - --output /dev/null --max-time 30 "${auth_curl_args[@]}" 'https://ppcf-vm.biochem.mpg.de/ppsvf-app/?auth_user=forged-admin' || true)"
+    query_status="$(awk 'toupper($1) ~ /^HTTP\// { code=$2 } END { print code }' <<<"${query_headers}")"
+    query_location="$(awk 'tolower($1)=="location:" {sub(/\r$/, "", $2); location=$2} END {print location}' <<<"${query_headers}")"
+    if [[ "${query_status}" == 302 && "${query_location}" == "/ppsvf-app/?auth_user=${ldap_login}" ]]; then
+      pass "forged auth_user query is replaced with the authenticated LDAP user"
+    else
+      fail "forged auth_user query returned ${query_status:-no response} with Location ${query_location:-<missing>}"
+    fi
     websocket_status="$(curl --http1.1 --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 8 "${auth_curl_args[@]}" \
       -H 'Connection: Upgrade' \
       -H 'Upgrade: websocket' \
