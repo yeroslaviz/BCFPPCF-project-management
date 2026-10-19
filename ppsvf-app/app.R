@@ -543,9 +543,26 @@ server <- function(input, output, session) {
     tolower(username)
   }
 
+  log_missing_identity_diagnostic <- function() {
+    request <- session$request
+    request_names <- names(request) %||% character()
+    relevant_names <- request_names[grepl("REMOTE|USER", request_names, ignore.case = TRUE)]
+    has_value <- function(value) {
+      length(value) > 0L && !is.null(value) && !is.na(value[[1L]]) && nzchar(trimws(as.character(value[[1L]])))
+    }
+    message(
+      "[PPSV auth] identity missing in Shiny request; ",
+      "HTTP_X_REMOTE_USER_present=", has_value(request$HTTP_X_REMOTE_USER),
+      "; HTTP_REMOTE_USER_present=", has_value(request$HTTP_REMOTE_USER),
+      "; REMOTE_USER_present=", has_value(request$REMOTE_USER),
+      "; related_request_fields=", if (length(relevant_names)) paste(relevant_names, collapse = ",") else "<none>"
+    )
+  }
+
   load_identity <- function() {
     username <- remote_username()
     if (!nzchar(username)) {
+      log_missing_identity_diagnostic()
       identity(NULL)
       identity_error("No authenticated LDAP identity was supplied by Apache.")
       return(invisible(NULL))
