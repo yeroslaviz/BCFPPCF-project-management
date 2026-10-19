@@ -186,7 +186,9 @@ log "Restoring locked R dependencies into staged release ${RELEASE_ID}."
 
 if [[ -f "${PPSV_DB_FILE}" ]]; then
   log "Creating verified pre-deployment database and fallback backup."
-  PPSV_ENV_FILE="${ENV_FILE}" /usr/local/libexec/ppsvf-app/backup.sh
+  PPSV_ENV_FILE="${ENV_FILE}" \
+    PPSV_BACKUP_PROJECT_DIR="${STAGING_ROOT}/ppsvf-app" \
+    /usr/local/libexec/ppsvf-app/backup.sh
 fi
 
 # Prevent a reconciliation, restore, or scheduled backup from crossing the

@@ -38,6 +38,8 @@ ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
   installs its `.Renviron`, and no longer tries to create or modify a duplicate
   local account. This handles Shiny Server's login-style `su` launch, which
   resets `HOME` and otherwise prevented `renv` from creating its cache.
+- Made the first deployment's verified pre-deployment backup use the staged
+  app's restored R environment when no active PPSV release exists yet.
 - Made the root-run deployment cleanliness check read-only for Git's index, so
   it cannot replace the operator checkout's `.git/index` with a root-owned one.
 - Stopped provisioning from changing the NFS pool root's ownership, mode, or

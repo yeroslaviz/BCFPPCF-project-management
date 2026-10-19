@@ -32,7 +32,16 @@ FALLBACK_BACKUP_DIR="${PPSV_BACKUP_DIR%/}/fallback"
 install -d -m 0700 "${DB_BACKUP_DIR}" "${FALLBACK_BACKUP_DIR}"
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
-app_dir="$(validate_active_app_dir)"
+if [[ -n "${PPSV_BACKUP_PROJECT_DIR:-}" ]]; then
+  app_dir="${PPSV_BACKUP_PROJECT_DIR}"
+  case "${app_dir}" in
+    "${PPSV_RELEASES_ROOT}"/.*.staging.*/ppsvf-app) ;;
+    *) die "Explicit backup project must be the staged PPSV app under ${PPSV_RELEASES_ROOT}." ;;
+  esac
+  [[ -d "${app_dir}" && ! -L "${app_dir}" && -f "${app_dir}/backup_database.R" && -f "${app_dir}/renv.lock" ]] || die "Staged backup project is incomplete or unsafe: ${app_dir}"
+else
+  app_dir="$(validate_active_app_dir)"
+fi
 db_final=""
 fallback_final=""
 db_partial=""

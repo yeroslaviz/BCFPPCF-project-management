@@ -225,6 +225,13 @@ deployment error and Shiny log, then choose a release compatible with the
 current schema. Use database restore only with incident authorization and the
 explicit data-loss confirmation described in [Backup and restore](backup-restore.qmd).
 
+On a first deployment, there may be no active release symlink yet. The deploy
+script should use the staged app's restored R environment for its verified
+pre-deployment database/fallback backup. If it instead reports `Active PPSV
+application release is unavailable` during that backup, the installed
+operator scripts are older than the repository version; pull the release and
+rerun provisioning before trying deployment again.
+
 ## Escalation bundle
 
 Provide the incident owner with timestamps, release ID/revision, affected
