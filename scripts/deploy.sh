@@ -72,7 +72,9 @@ runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_FALLBACK_ROOT}" || die "Runtime 
 
 if git -C "${SOURCE_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   git_revision="$(git -C "${SOURCE_ROOT}" rev-parse --short=12 HEAD)"
-  if [[ -n "$(git -C "${SOURCE_ROOT}" status --porcelain --untracked-files=normal)" && "${PPSV_ALLOW_DIRTY_RELEASE:-0}" != 1 ]]; then
+  # This runs as root, but the source checkout belongs to the operator.
+  # Avoid Git's optional index refresh, which would replace .git/index as root.
+  if [[ -n "$(git --no-optional-locks -C "${SOURCE_ROOT}" status --porcelain --untracked-files=normal)" && "${PPSV_ALLOW_DIRTY_RELEASE:-0}" != 1 ]]; then
     die "Source repository has tracked or untracked changes. Commit the release, or explicitly set PPSV_ALLOW_DIRTY_RELEASE=1 for a non-production test."
   fi
 else

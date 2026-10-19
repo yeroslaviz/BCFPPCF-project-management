@@ -25,6 +25,8 @@ ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
 
 ### 2026-10-19
 
+- Made the root-run deployment cleanliness check read-only for Git's index, so
+  it cannot replace the operator checkout's `.git/index` with a root-owned one.
 - Stopped provisioning from changing the NFS pool root's ownership, mode, or
   ACL. Provisioning and deployment now verify actual service-user directory
   creation/removal; application storage no longer relies on `test -w` or
