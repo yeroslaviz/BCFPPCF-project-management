@@ -290,6 +290,15 @@ validate_pool_destination() {
   log "Project pool is mounted from ${mount_source} at ${mount_target} (${mount_type})."
 }
 
+probe_pool_write_as_app() {
+  local root="$1"
+  [[ -d "${root}" && ! -L "${root}" ]] || return 1
+  runuser -u "${APP_RUN_USER}" -- sh -c '
+    probe="$(mktemp -d "$1/.ppsvf-write-probe.XXXXXXXX")" || exit 1
+    rmdir -- "$probe"
+  ' sh "${root%/}"
+}
+
 verify_sha256_sidecar() {
   local artifact="$1"
   local sidecar="${artifact}.sha256"

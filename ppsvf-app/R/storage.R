@@ -31,16 +31,22 @@ ppsv_is_symlink <- function(path) {
 
 ppsv_storage_root_usable <- function(root, writable = TRUE) {
   root <- ppsv_scalar(root)
-  nzchar(root) && dir.exists(root) && !ppsv_is_symlink(root) &&
-    (!isTRUE(writable) || file.access(root, 2L) == 0L)
+  if (!nzchar(root) || !dir.exists(root) || ppsv_is_symlink(root)) return(FALSE)
+  if (!isTRUE(writable)) return(TRUE)
+  # NFS access-bit checks can disagree with an actual create operation.
+  probe <- tempfile(pattern = ".ppsvf-write-probe-", tmpdir = root)
+  if (!dir.create(probe, mode = "0700", showWarnings = FALSE)) return(FALSE)
+  identical(unlink(probe, recursive = TRUE), 0L)
 }
 
 # Production pool writes fail closed unless the configured mount point resolves
 # to the exact operator-reviewed source. Tests and explicit local development
 # may opt in to a normal directory with PPSV_ALLOW_LOCAL_POOL=1.
 ppsv_pool_root_usable <- function(config, writable = TRUE) {
-  if (!ppsv_storage_root_usable(config$pool_root, writable = writable)) return(FALSE)
-  if (isTRUE(config$allow_local_pool %||% FALSE)) return(TRUE)
+  if (!ppsv_storage_root_usable(config$pool_root, writable = FALSE)) return(FALSE)
+  if (isTRUE(config$allow_local_pool %||% FALSE)) {
+    return(ppsv_storage_root_usable(config$pool_root, writable = writable))
+  }
   expected <- ppsv_scalar(config$pool_expected_source)
   if (!nzchar(expected) || grepl("REQUIRED", expected, fixed = TRUE)) return(FALSE)
   findmnt <- Sys.which("findmnt")
@@ -54,7 +60,8 @@ ppsv_pool_root_usable <- function(config, writable = TRUE) {
     ),
     error = function(error) character()
   )
-  identical(length(actual), 1L) && identical(trimws(actual[[1L]]), expected)
+  identical(length(actual), 1L) && identical(trimws(actual[[1L]]), expected) &&
+    ppsv_storage_root_usable(config$pool_root, writable = writable)
 }
 
 # Reject links anywhere below the configured root, even when a link resolves

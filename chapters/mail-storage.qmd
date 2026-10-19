@@ -190,9 +190,10 @@ request. Optional request-submission files are rejected if neither the primary
 pool nor fallback is writable; they are never silently discarded. A request
 without files can still be saved with storage state `none`.
 
-Path traversal and symbolic links are rejected. Directories use mode `2770`
-and files `0660`; setgid and default ACLs preserve access for
-`ppsvf-shiny-user` and `b_profa`. Never change these paths to `0777` or `0666`.
+Path traversal and symbolic links are rejected. Application-created directories
+use mode `2770` and stored files `0660`. A separate facility permissions script
+manages any ACLs on the pool root; PPSV does not change that mount point.
+Never change these paths to `0777` or `0666`.
 
 ## Pool outage and fallback
 

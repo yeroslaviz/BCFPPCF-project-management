@@ -188,8 +188,9 @@ sudo -u ppsvf-shiny-user unlink "$probe/probe"
 sudo -u ppsvf-shiny-user rmdir "$probe"
 ```
 
-- [ ] Service user writes primary pool and fallback; created directories/files
-  are `2770`/`0660` with the expected ACL.
+- [ ] Service user writes primary pool and fallback; PPSV-created
+  directories/files are `2770`/`0660`. Verify the separate facility
+  permissions script's ACLs after that script runs.
 - [ ] A request appears at `PPSVnnnnnn/{inputs,results}` and the database keeps
   generated name, original name, size, uploader, location, and SHA-256.
 - [ ] Traversal names, symlinks, and unauthorized direct IDs are rejected.

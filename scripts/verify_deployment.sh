@@ -68,7 +68,6 @@ validate_runtime_paths
 require_command curl
 require_command ss
 require_command sqlite3
-require_command getfacl
 require_command sha256sum
 
 failures=0
@@ -268,24 +267,23 @@ check_role() {
 check_role "${ROLE_ADMIN}" admin
 check_role "${ROLE_TECHNICIAN}" technician
 
-check_storage_acl() {
+check_storage_writes() {
   local root="$1"
   local label="$2"
   local expected_group="$3"
   local probe="${root}/.ppsv-verify-$$"
-  if runuser -u "${APP_RUN_USER}" -- bash -c 'umask 0007; mkdir "$1"; touch "$1/probe"' bash "${probe}"; then
+  if runuser -u "${APP_RUN_USER}" -- bash -c 'umask 0007; mkdir "$1" && chmod 2770 "$1" && : >"$1/probe" && chmod 0660 "$1/probe"' bash "${probe}"; then
     local directory_mode file_mode directory_group file_group
     directory_mode="$(stat -c '%a' "${probe}")"
     file_mode="$(stat -c '%a' "${probe}/probe")"
     directory_group="$(stat -c '%G' "${probe}")"
     file_group="$(stat -c '%G' "${probe}/probe")"
-    rm -f -- "${probe}/probe"
-    rmdir -- "${probe}"
+    runuser -u "${APP_RUN_USER}" -- bash -c 'rm -f -- "$1/probe" && rmdir -- "$1"' bash "${probe}" || fail "runtime account could not remove ${label} probe"
     [[ "${directory_mode}" == 2770 && "${file_mode}" == 660 ]] && pass "${label} creates 2770 directories and 0660 files" || fail "${label} created modes ${directory_mode}/${file_mode}, expected 2770/660"
     [[ "${directory_group}" == "${expected_group}" && "${file_group}" == "${expected_group}" ]] && pass "${label} children inherit group ${expected_group}" || fail "${label} child groups are ${directory_group}/${file_group}, expected ${expected_group}"
   else
     fail "runtime account cannot create files in ${label}: ${root}"
-    rm -rf -- "${probe}" 2>/dev/null || true
+    runuser -u "${APP_RUN_USER}" -- bash -c 'rm -f -- "$1/probe"; rmdir -- "$1"' bash "${probe}" 2>/dev/null || true
   fi
 }
 
@@ -297,21 +295,12 @@ if validate_pool_destination; then
   fi
 fi
 
-check_storage_acl "${PPSV_POOL_ROOT}" "project pool" "${PPSV_POOL_GROUP}"
-check_storage_acl "${PPSV_FALLBACK_ROOT}" "fallback storage" "${APP_RUN_GROUP}"
+check_storage_writes "${PPSV_POOL_ROOT}" "project pool" "${PPSV_POOL_GROUP}"
+check_storage_writes "${PPSV_FALLBACK_ROOT}" "fallback storage" "${APP_RUN_GROUP}"
 
-pool_root_mode="$(stat -c '%a' "${PPSV_POOL_ROOT}" 2>/dev/null || true)"
-pool_root_group="$(stat -c '%G' "${PPSV_POOL_ROOT}" 2>/dev/null || true)"
-[[ "${pool_root_mode}" == 2770 && "${pool_root_group}" == "${PPSV_POOL_GROUP}" ]] && pass "project pool root is mode 2770 group ${PPSV_POOL_GROUP}" || fail "project pool root is mode ${pool_root_mode:-missing} group ${pool_root_group:-missing}"
 fallback_root_mode="$(stat -c '%a' "${PPSV_FALLBACK_ROOT}" 2>/dev/null || true)"
 fallback_root_owner="$(stat -c '%U:%G' "${PPSV_FALLBACK_ROOT}" 2>/dev/null || true)"
 [[ "${fallback_root_mode}" == 2770 && "${fallback_root_owner}" == "${APP_RUN_USER}:${APP_RUN_GROUP}" ]] && pass "fallback root is runtime-owned mode 2770" || fail "fallback root is ${fallback_root_owner:-missing} mode ${fallback_root_mode:-missing}"
-
-pool_acl="$(getfacl -cp "${PPSV_POOL_ROOT}" 2>/dev/null || true)"
-grep -Fqx "user:${APP_RUN_USER}:rwx" <<<"${pool_acl}" && pass "project pool grants the runtime user rwx ACL" || fail "project pool runtime-user ACL is missing"
-grep -Fqx "group:${PPSV_POOL_GROUP}:rwx" <<<"${pool_acl}" && pass "project pool grants ${PPSV_POOL_GROUP} rwx ACL" || fail "project pool ${PPSV_POOL_GROUP} ACL is missing"
-grep -Fqx "default:user:${APP_RUN_USER}:rwx" <<<"${pool_acl}" && pass "project pool has a default runtime-user ACL" || fail "project pool default runtime-user ACL is missing"
-grep -Fqx "default:group:${PPSV_POOL_GROUP}:rwx" <<<"${pool_acl}" && pass "project pool has a default ${PPSV_POOL_GROUP} ACL" || fail "project pool default ${PPSV_POOL_GROUP} ACL is missing"
 
 if validate_backup_destination; then
   pass "configured backup destination is valid"

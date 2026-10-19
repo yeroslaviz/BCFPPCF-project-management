@@ -140,12 +140,15 @@ Confirm the mount identity, permissions, and service-user access:
 ```bash
 findmnt -T /fs/pool/pool-ppsvf-projects
 sudo getfacl /fs/pool/pool-ppsvf-projects
-sudo -u ppsvf-shiny-user test -w /fs/pool/pool-ppsvf-projects
+probe="$(sudo -u ppsvf-shiny-user mktemp -d /fs/pool/pool-ppsvf-projects/.ppsvf-write-probe.XXXXXXXX)"
+sudo -u ppsvf-shiny-user rmdir "$probe"
 sudo find /srv/ppsv-app-data/uploads_pending_pool -maxdepth 3 -type f -print
 ```
 
-Do not recursively `chmod 777`, `chmod 666`, or `chown` the facility pool. Ask
-the storage owner to restore the mount/ACL. When it is writable, run:
+Do not recursively `chmod 777`, `chmod 666`, or `chown` the facility pool. The
+pool root is managed separately; the application only needs to create its own
+project directories. If the create/remove probe fails, ask the storage owner
+to restore write access. When it succeeds, run:
 
 ```bash
 sudo systemctl start ppsv-pool-reconcile.service

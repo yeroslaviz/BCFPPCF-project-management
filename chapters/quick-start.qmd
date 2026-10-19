@@ -157,7 +157,8 @@ sudo scripts/provision.sh --env /root/ppsvf-app.env --install-system
 
 Provisioning validates TLS and the facility-pool mount identity before copying or
 changing configuration, creates the private runtime account and persistent
-paths, applies the pool ACL, installs Apache/Shiny templates and systemd units,
+paths, verifies that the service user can create and remove a directory in the
+pool without changing the pool root, installs Apache/Shiny templates and systemd units,
 and enables the mail, weekly backup, and healthcheck timers. Re-running the command with the same
 reviewed inputs is supported.
 

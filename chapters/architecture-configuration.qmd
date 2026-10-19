@@ -170,6 +170,7 @@ The top-level data directory is root-owned and group-read-only (`0750`), and
 the R dependency cache is app-owned with mode `0700`.
 
 Pool and fallback request directories use mode `2770`; stored files use
-`0660`. The pool root receives access and default ACLs for the service user and
-`b_profa`. Do not use `0777`, `0666`, or make the application user a privileged
-login account.
+`0660`. Provisioning does not change ownership, mode, or ACLs on the facility
+pool root. It tests actual directory creation as the service user; facility
+permissions are managed separately. Do not use `0777`, `0666`, or make the
+application user a privileged login account.

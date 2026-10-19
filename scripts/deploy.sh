@@ -67,7 +67,7 @@ getent passwd "${APP_RUN_USER}" >/dev/null || die "Runtime account does not exis
 validate_private_database_storage
 validate_private_renv_cache
 validate_pool_destination
-runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_POOL_ROOT}" || die "Runtime account cannot write the project pool."
+probe_pool_write_as_app "${PPSV_POOL_ROOT}" || die "Runtime account cannot create and remove a directory in the project pool."
 runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_FALLBACK_ROOT}" || die "Runtime account cannot write fallback storage."
 
 if git -C "${SOURCE_ROOT}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then

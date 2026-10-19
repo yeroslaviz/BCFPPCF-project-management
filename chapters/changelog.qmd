@@ -23,8 +23,19 @@ ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
 
 ## Latest repository changes
 
+### 2026-10-19
+
+- Stopped provisioning from changing the NFS pool root's ownership, mode, or
+  ACL. Provisioning and deployment now verify actual service-user directory
+  creation/removal; application storage no longer relies on `test -w` or
+  `file.access()` for the pool.
+- Kept `2770`/`0660` checks on PPSV-created project paths, while leaving
+  facility pool-root permissions to the separate operator workflow.
+
 ### 2026-10-18
 
+- Updated the Ubuntu 26.04 FreeType preflight to check the installed
+  `libfreetype-dev` package name, avoiding a repeated no-op install.
 - Pinned PPSV provisioning, deployment, Shiny Server, and maintenance workers
   to side-by-side R 4.6.1 at `/opt/R/4.6.1/bin`; the VM-wide `/usr/bin/R` remains
   unchanged.

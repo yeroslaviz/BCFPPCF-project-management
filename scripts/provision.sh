@@ -13,7 +13,7 @@ usage() {
 Usage: provision.sh --env FILE [--install-system]
 
 Idempotently provisions the PPSV runtime account, persistent directories,
-pool ACL, TLS material, Apache/Shiny configuration, and systemd timers.
+pool write access, TLS material, Apache/Shiny configuration, and systemd timers.
 TLS_KEY_FILE and PPSV_BACKUP_DIR are mandatory; neither is guessed.
 USAGE
 }
@@ -237,10 +237,7 @@ done
 install -d -o root -g "${APP_RUN_GROUP}" -m 0750 /srv/shiny-server
 
 [[ -d "${PPSV_POOL_ROOT}" ]] || die "Project pool is not mounted at ${PPSV_POOL_ROOT}."
-chgrp "${PPSV_POOL_GROUP}" "${PPSV_POOL_ROOT}"
-chmod 2770 "${PPSV_POOL_ROOT}"
-setfacl -m "u:${APP_RUN_USER}:rwx,g:${PPSV_POOL_GROUP}:rwx,m:rwx" "${PPSV_POOL_ROOT}"
-setfacl -d -m "u:${APP_RUN_USER}:rwx,g:${PPSV_POOL_GROUP}:rwx,m:rwx" "${PPSV_POOL_ROOT}"
+probe_pool_write_as_app "${PPSV_POOL_ROOT}" || die "Runtime account cannot create and remove a directory in the project pool. Pool-root permissions are managed separately."
 
 [[ ! -L "${PPSV_BACKUP_DIR}/database" && ! -L "${PPSV_BACKUP_DIR}/fallback" ]] || die "Refusing a symbolic link in backup storage."
 install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 \

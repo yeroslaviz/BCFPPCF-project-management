@@ -503,6 +503,26 @@ testthat::test_that("file-bearing submissions roll back when both storage roots 
   testthat::expect_equal(created$storage_state, "none")
 })
 
+testthat::test_that("storage write checks create and remove a disposable directory", {
+  ctx <- ppsv_test_context()
+  root <- ctx$config$pool_root
+  before <- list.files(root, all.files = TRUE, no.. = TRUE)
+  before_mode <- file.info(root)$mode
+
+  testthat::expect_true(ppsv_storage_root_usable(root))
+  testthat::expect_true(ppsv_pool_root_usable(ctx$config))
+  testthat::expect_identical(list.files(root, all.files = TRUE, no.. = TRUE), before)
+  testthat::expect_identical(file.info(root)$mode, before_mode)
+  testthat::expect_false(ppsv_storage_root_usable(file.path(root, "missing")))
+
+  outside <- file.path(attr(ctx, "test_root"), "outside-probe")
+  dir.create(outside)
+  link <- file.path(attr(ctx, "test_root"), "linked-probe")
+  testthat::expect_true(file.symlink(outside, link))
+  testthat::expect_false(ppsv_storage_root_usable(link))
+  testthat::expect_length(list.files(outside, all.files = TRUE, no.. = TRUE), 0L)
+})
+
 testthat::test_that("fallback reconciliation is checksum-safe and preserves source copies", {
   ctx <- ppsv_test_context(pool = FALSE)
   user <- ppsv_test_user(ctx, "alice")

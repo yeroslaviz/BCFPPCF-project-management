@@ -80,7 +80,6 @@ case "$(uname -m)" in
 esac
 
 APT_PACKAGES=(
-  acl
   apache2
   build-essential
   ca-certificates
@@ -89,7 +88,7 @@ APT_PACKAGES=(
   git
   libcurl4-openssl-dev
   libfontconfig1-dev
-  libfreetype6-dev
+  libfreetype-dev
   libfribidi-dev
   libharfbuzz-dev
   libjpeg-dev
@@ -122,7 +121,7 @@ fi
 
 ((${#missing_packages[@]} == 0)) || die "Missing Ubuntu packages: ${missing_packages[*]}. Re-run with --install-system after review."
 
-for command_name in apache2ctl curl flock git java javac openssl python3 rsync setfacl sha256sum sqlite3; do
+for command_name in apache2ctl curl flock git java javac openssl python3 rsync sha256sum sqlite3; do
   require_command "${command_name}"
 done
 [[ -x "${PPSV_R_BIN}/R" && -x "${PPSV_R_BIN}/Rscript" ]] || die "PPSV requires R and Rscript under ${PPSV_R_BIN}; install R 4.6.1 side-by-side first."

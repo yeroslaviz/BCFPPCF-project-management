@@ -95,8 +95,8 @@ validates:
 - runtime user `ppsvf-shiny-user` with primary group `b_profa`;
 - immutable-release, persistent-data, fallback, lock, deployment-record, and
   renv-cache directories;
-- project-pool setgid/default ACL access for the service account and
-  `b_profa`;
+- actual directory creation/removal by the service account in the mounted
+  project pool, without modifying the facility pool root;
 - the configured local backup directories;
 - loopback-only Shiny Server configuration;
 - HTTP redirect and HTTPS LDAP/WebSocket Apache sites; and
