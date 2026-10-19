@@ -11,7 +11,7 @@ host scope it removes all client-controlled identity headers, including
 `X-Remote-User`, name, email, group, and phone variants. Inside the protected
 location it injects values obtained from the successful LDAP request:
 
-- `X-Remote-User` from `REMOTE_USER`;
+- `X-Remote-User` from the authenticated LDAP `uid` attribute;
 - `X-Remote-Name` from the LDAP display name;
 - `X-Remote-Email` from the LDAP mail attribute;
 - `X-Remote-Group` from the configured organizational attribute; and

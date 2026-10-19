@@ -394,7 +394,7 @@ for module in authnz_ldap headers proxy proxy_http proxy_wstunnel rewrite ssl; d
 done
 
 grep -Fq 'RequestHeader unset X-Remote-User early' /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf && pass "client identity header is stripped before proxying" || fail "active vhost does not strip X-Remote-User"
-grep -Fq 'RequestHeader set X-Remote-User "expr=%{REMOTE_USER}"' /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf && pass "proxied username comes from Apache REMOTE_USER" || fail "active vhost does not inject username from REMOTE_USER"
+grep -Fq 'RequestHeader set X-Remote-User "expr=%{reqenv:AUTHENTICATE_UID}"' /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf && pass "proxied username comes from authenticated LDAP uid" || fail "active vhost does not inject username from the authenticated LDAP uid"
 for profile_header in X-Remote-Name X-Remote-Email X-Remote-Group X-Remote-Phone; do
   grep -Fq "RequestHeader unset ${profile_header} early" /etc/apache2/sites-enabled/ppsv-vm-shiny-443.conf || fail "active vhost does not strip ${profile_header}"
 done
