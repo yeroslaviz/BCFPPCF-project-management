@@ -8,20 +8,23 @@ source "${SCRIPT_DIR}/lib.sh"
 ENV_FILE="${PPSV_ENV_FILE:-/etc/ppsvf-app/ppsvf-app.env}"
 SKIP_PUBLIC=0
 NETRC_FILE=""
+LDAP_USER=""
 ROLE_USER=""
 ROLE_TECHNICIAN="grzejszc"
 ROLE_ADMIN="yeroslaviz"
 
 usage() {
   cat <<'USAGE'
-Usage: verify_deployment.sh [--env FILE] [--skip-public] [--netrc FILE]
+Usage: verify_deployment.sh [--env FILE] [--skip-public]
+                            [--netrc FILE | --ldap-user USER]
                             [--role-user USER] [--role-technician USER]
                             [--role-admin USER]
 
 Runs local service, ownership, database, ACL, configuration, and timer checks.
-Public checks use normal CA verification (never curl -k). If --netrc points to
-a mode-0600 curl netrc containing an LDAP test account, the authenticated
-route, forged-header replacement, and WebSocket upgrade are checked as well.
+Public checks use normal CA verification (never curl -k). Supply either a
+mode-0600 curl netrc with --netrc or an LDAP username with --ldap-user; in the
+latter mode curl prompts interactively for the password on each authenticated
+request and the password is not saved to disk.
 
 Role checks always verify the configured technician and administrator. Supply
 an ordinary LDAP username with --role-user to complete the three-role proof.
@@ -39,6 +42,11 @@ while (($#)); do
     --netrc)
       [[ $# -ge 2 ]] || die "--netrc needs a file"
       NETRC_FILE="$2"
+      shift 2
+      ;;
+    --ldap-user)
+      [[ $# -ge 2 ]] || die "--ldap-user needs a username"
+      LDAP_USER="$2"
       shift 2
       ;;
     --role-user)
@@ -60,6 +68,11 @@ while (($#)); do
     *) die "Unknown option: $1" ;;
   esac
 done
+
+[[ -z "${NETRC_FILE}" || -z "${LDAP_USER}" ]] || die "Use only one of --netrc or --ldap-user."
+if [[ -n "${LDAP_USER}" && ! "${LDAP_USER}" =~ ^[^:[:space:]]+$ ]]; then
+  die "LDAP username must not contain a colon or whitespace."
+fi
 
 require_root
 umask 0077
@@ -425,14 +438,21 @@ if ((SKIP_PUBLIC == 0)); then
     https://ppcf-vm.biochem.mpg.de/ppsvf-app/websocket/ || true)"
   [[ "${unauth_websocket_status}" == 401 ]] && pass "unauthenticated WebSocket upgrade is rejected by LDAP" || fail "unauthenticated WebSocket upgrade returned ${unauth_websocket_status:-no response}, expected 401"
 
+  auth_curl_args=()
   if [[ -n "${NETRC_FILE}" ]]; then
     [[ -f "${NETRC_FILE}" && ! -L "${NETRC_FILE}" ]] || die "Netrc file must be a regular, non-symlink file: ${NETRC_FILE}"
     [[ "$(stat -c '%a' "${NETRC_FILE}")" == 600 ]] || die "LDAP test netrc must have mode 0600."
-    auth_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --netrc-file "${NETRC_FILE}" https://ppcf-vm.biochem.mpg.de/ppsvf-app/ || true)"
+    auth_curl_args=(--netrc-file "${NETRC_FILE}")
+  elif [[ -n "${LDAP_USER}" ]]; then
+    auth_curl_args=(--user "${LDAP_USER}")
+  fi
+
+  if ((${#auth_curl_args[@]})); then
+    auth_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 "${auth_curl_args[@]}" https://ppcf-vm.biochem.mpg.de/ppsvf-app/ || true)"
     [[ "${auth_status}" =~ ^(2|3)[0-9][0-9]$ ]] && pass "LDAP-authenticated application route returned ${auth_status}" || fail "LDAP-authenticated route returned ${auth_status:-no response}"
-    spoof_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 30 --netrc-file "${NETRC_FILE}" -H 'X-Remote-User: forged-admin' https://ppcf-vm.biochem.mpg.de/ppsvf-app/ || true)"
+    spoof_status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 30 "${auth_curl_args[@]}" -H 'X-Remote-User: forged-admin' https://ppcf-vm.biochem.mpg.de/ppsvf-app/ || true)"
     [[ "${spoof_status}" =~ ^(2|3)[0-9][0-9]$ ]] && pass "authenticated request survives replacement of a forged identity header" || fail "authenticated spoof test returned ${spoof_status:-no response}"
-    websocket_status="$(curl --http1.1 --silent --output /dev/null --write-out '%{http_code}' --max-time 8 --netrc-file "${NETRC_FILE}" \
+    websocket_status="$(curl --http1.1 --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 8 "${auth_curl_args[@]}" \
       -H 'Connection: Upgrade' \
       -H 'Upgrade: websocket' \
       -H 'Sec-WebSocket-Version: 13' \
@@ -445,7 +465,7 @@ if ((SKIP_PUBLIC == 0)); then
     forged_rows="$(runuser -u "${APP_RUN_USER}" -- sqlite3 "${PPSV_DB_FILE}" "SELECT count(*) FROM users WHERE lower(username)='forged-admin';" 2>/dev/null || true)"
     [[ "${forged_rows}" == 0 ]] && pass "forged identity was not synchronized into the user directory" || fail "forged-admin unexpectedly exists in the user directory"
   else
-    fail "No --netrc supplied; LDAP login, authenticated spoof replacement, and WebSocket checks were not proved."
+    fail "No --netrc or --ldap-user supplied; LDAP login, authenticated spoof replacement, and WebSocket checks were not proved."
   fi
 fi
 

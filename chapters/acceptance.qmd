@@ -41,9 +41,11 @@ explicit risk decision.
 
 ## Deployment verifier
 
-Create a short-lived mode-`0600` netrc for a dedicated LDAP test account. This
-allows the verifier to use normal CA validation while proving authenticated,
-spoofed-header, and WebSocket behavior:
+Use a dedicated ordinary LDAP test account to prove authenticated,
+spoofed-header, and WebSocket behavior. The password can be prompted for
+interactively with `--ldap-user`, or stored in a short-lived mode-`0600` netrc
+if repeated prompts are inconvenient. The interactive option does not save the
+password to disk:
 
 ```text
 machine ppcf-vm.biochem.mpg.de
@@ -59,6 +61,17 @@ sudo scripts/verify_deployment.sh \
   --role-technician grzejszc \
   --role-admin yeroslaviz
 sudo shred -u /root/ppsv-test.netrc
+```
+
+To avoid a password file, use the same ordinary username for both flags; curl
+prompts for the password for each authenticated request:
+
+```bash
+sudo scripts/verify_deployment.sh \
+  --ldap-user ORDINARY_LDAP_USERNAME \
+  --role-user ORDINARY_LDAP_USERNAME \
+  --role-technician grzejszc \
+  --role-admin yeroslaviz
 ```
 
 Never add `-k` or `--insecure` to make a TLS check pass. Ticket delivery
