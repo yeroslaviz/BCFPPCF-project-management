@@ -195,7 +195,7 @@ getent group "${APP_RUN_GROUP}" >/dev/null || die "Required runtime/pool group d
 if ! getent passwd "${APP_RUN_USER}" >/dev/null; then
   useradd --system --gid "${APP_RUN_GROUP}" --home-dir "${PPSV_RUNTIME_HOME}" --no-create-home --shell /usr/sbin/nologin "${APP_RUN_USER}"
 else
-  usermod --home "${PPSV_RUNTIME_HOME}" --no-create-home "${APP_RUN_USER}"
+  usermod --home "${PPSV_RUNTIME_HOME}" "${APP_RUN_USER}"
 fi
 actual_primary_group="$(id -gn "${APP_RUN_USER}")"
 [[ "${actual_primary_group}" == "${APP_RUN_GROUP}" ]] || die "${APP_RUN_USER} primary group is ${actual_primary_group}; expected ${APP_RUN_GROUP}."
