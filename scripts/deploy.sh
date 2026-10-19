@@ -91,6 +91,10 @@ RELEASE_ROOT="${PPSV_RELEASES_ROOT}/${RELEASE_ID}"
 STAGING_ROOT="${PPSV_RELEASES_ROOT}/.${RELEASE_ID}.staging.$$"
 [[ ! -e "${RELEASE_ROOT}" && ! -e "${STAGING_ROOT}" ]] || die "Release already exists: ${RELEASE_ID}"
 
+# Catch missing system build headers (for example libuv1-dev for fs) before
+# renv starts compiling packages into the staged release.
+"${SCRIPT_DIR}/check_requirements.sh" --repo "${SOURCE_ROOT}" --env "${ENV_FILE}"
+
 previous_target="$(readlink -f "${PPSV_CURRENT_LINK}" 2>/dev/null || true)"
 services_quiesced=0
 shiny_was_active=0
@@ -163,7 +167,7 @@ log "Restoring locked R dependencies into staged release ${RELEASE_ID}."
     RENV_PROJECT="${STAGING_ROOT}/ppsvf-app" \
     RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" \
     R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache" \
-    RENV_CONFIG_CACHE_SYMLINKS=false \
+    RENV_CONFIG_CACHE_SYMLINKS=true \
     "${PPSV_R_BIN}/Rscript" -e '
       stopifnot(requireNamespace("renv", quietly = TRUE))
       renv::restore(project = getwd(), prompt = FALSE)

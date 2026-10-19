@@ -94,6 +94,7 @@ APT_PACKAGES=(
   libjpeg-dev
   libldap2-dev
   libpng-dev
+  libuv1-dev
   libsasl2-dev
   libssl-dev
   libtiff-dev
