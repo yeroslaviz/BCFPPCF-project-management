@@ -14,8 +14,13 @@ ppsv_test_context <- function(ticket_mode = "disabled", direct_ack = FALSE,
   dir.create(root, recursive = TRUE)
   pool_root <- file.path(root, "pool")
   if (pool) dir.create(pool_root)
+  budget_file <- file.path(root, "budget_holders.csv")
+  utils::write.csv(data.frame(
+    name = "Test research", surname = "group", cost_center = "BIO-123"
+  ), budget_file, row.names = FALSE)
   config <- ppsv_config(list(
     app_dir = file.path(PPSV_TEST_REPO, "ppsvf-app"),
+    budget_holders_file = budget_file,
     db_file = file.path(root, "database", "ppsv.sqlite"),
     pool_root = pool_root,
     pool_expected_source = "",

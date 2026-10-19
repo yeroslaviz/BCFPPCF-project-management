@@ -3,9 +3,14 @@ testthat::test_that("staff review and queue acceptance with a PDF while requeste
   root <- tempfile("ppsv-acceptance-ui-")
   dir.create(root)
   dir.create(file.path(root, "pool"))
+  catalogue <- file.path(root, "budget_holders.csv")
+  utils::write.csv(data.frame(
+    name = "Test research", surname = "group", cost_center = "BIO-123"
+  ), catalogue, row.names = FALSE)
   withr::local_envvar(c(
     AUTH_MODE = "test", PPSV_TEST_USER = "yeroslaviz",
     PPSV_TEST_NAME = "Assa Yeroslaviz", PPSV_TEST_EMAIL = "yeroslaviz@biochem.mpg.de",
+    PPSV_BUDGET_HOLDERS_FILE = catalogue,
     PPSV_DB_FILE = file.path(root, "db.sqlite"),
     PPSV_POOL_ROOT = file.path(root, "pool"), PPSV_ALLOW_LOCAL_POOL = "true",
     PPSV_FALLBACK_ROOT = file.path(root, "fallback"), PPSV_TICKET_MODE = "disabled"

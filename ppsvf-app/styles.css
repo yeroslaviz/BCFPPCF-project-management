@@ -207,6 +207,10 @@ textarea.form-control {
   color: #4f676c;
 }
 
+.identity-readonly + .field-help {
+  margin: 6px 0 0;
+}
+
 .auth-page {
   min-height: 100vh;
   display: grid;

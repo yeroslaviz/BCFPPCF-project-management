@@ -33,16 +33,28 @@ current_user <- function(username = NULL, headers = list(), ctx = ppsv_default_c
     }
     username <- ppsv_identity_from_headers(headers)
   }
-  ldap_name <- headers[["HTTP_X_REMOTE_NAME"]] %||% ""
-  ldap_email <- headers[["HTTP_X_REMOTE_EMAIL"]] %||% ""
+  profile <- list(
+    display_name = headers[["HTTP_X_REMOTE_NAME"]] %||% "",
+    email = headers[["HTTP_X_REMOTE_EMAIL"]] %||% "",
+    research_group = headers[["HTTP_X_REMOTE_GROUP"]] %||% "",
+    phone = headers[["HTTP_X_REMOTE_PHONE"]] %||% ""
+  )
+  missing <- !vapply(profile, function(value) nzchar(ppsv_trim(value)), logical(1L))
+  if (identical(ctx$config$auth_mode, "ldap") && any(missing)) {
+    ldap_profile <- tryCatch(
+      ppsv_ldap_lookup_user(username),
+      error = function(error) ppsv_ldap_empty_profile()
+    )
+    profile[missing] <- ldap_profile[names(profile)[missing]]
+  }
   identity <- list(
     username = username,
-    display_name = ldap_name,
-    email = ldap_email,
-    research_group = headers[["HTTP_X_REMOTE_GROUP"]] %||% "",
-    phone = headers[["HTTP_X_REMOTE_PHONE"]] %||% "",
-    ldap_name_verified = nzchar(ppsv_trim(ldap_name)),
-    ldap_email_verified = nzchar(ppsv_trim(ldap_email))
+    display_name = profile$display_name,
+    email = profile$email,
+    research_group = profile$research_group,
+    phone = profile$phone,
+    ldap_name_verified = nzchar(ppsv_trim(profile$display_name)),
+    ldap_email_verified = nzchar(ppsv_trim(profile$email))
   )
   con <- ppsv_db_connect(ctx$config)
   on.exit(DBI::dbDisconnect(con), add = TRUE)

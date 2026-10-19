@@ -278,7 +278,7 @@ testthat::test_that("the PPSV app contains no legacy database or cost schema art
     full.names = FALSE,
     include.dirs = TRUE
   )
-  forbidden_paths <- "(^|/)(ms_projects\\.db|budget_holders\\.csv|.*invoice.*|.*price[_ -]?list.*)$"
+  forbidden_paths <- "(^|/)(ms_projects\\.db|.*invoice.*|.*price[_ -]?list.*)$"
   testthat::expect_false(any(grepl(forbidden_paths, app_files, ignore.case = TRUE)))
 
   ctx <- ppsv_test_context()

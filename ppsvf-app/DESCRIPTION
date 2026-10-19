@@ -8,6 +8,7 @@ Description: Internal Shiny application for PPSV service requests, inquiries,
 License: MIT
 Encoding: UTF-8
 Imports:
+    base64enc,
     DBI,
     digest,
     DT,

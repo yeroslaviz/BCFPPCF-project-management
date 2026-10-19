@@ -72,6 +72,7 @@ create_request <- function(payload, uploads = NULL, user, ctx = ppsv_default_con
   user <- ppsv_actor_from_connection(con, user)
   ppsv_require(user, "create_request")
   payload <- ppsv_apply_verified_identity(payload, user)
+  payload <- ppsv_apply_billing(payload, user, ctx$config)
   payload <- ppsv_validate_request_payload(payload)
   staging <- new.env(parent = emptyenv())
   staging$records <- data.frame()
@@ -81,6 +82,7 @@ create_request <- function(payload, uploads = NULL, user, ctx = ppsv_default_con
   request_code <- ppsv_db_transaction(con, {
     db_user <- ppsv_actor_from_connection(con, user)
     payload <- ppsv_apply_verified_identity(payload, db_user)
+    payload <- ppsv_apply_billing(payload, db_user, ctx$config)
     payload <- ppsv_validate_request_payload(payload)
     code <- ppsv_allocate_request_code_in_transaction(con)
     staging$records <- ppsv_store_uploads(code, uploads, "inputs", db_user$username, ctx$config)
@@ -163,6 +165,10 @@ update_request <- function(id, payload, user, ctx = ppsv_default_context()) {
   if (identical(user$username, current$owner_username)) {
     merged <- ppsv_apply_verified_identity(merged, user)
   }
+  # Edits use the request's group, never the staff editor's LDAP group.
+  merged <- ppsv_apply_billing(
+    merged, list(research_group = merged$research_group), ctx$config, current = current
+  )
   normalized <- ppsv_validate_request_payload(merged)
   email_verified <- if (identical(user$username, current$owner_username)) {
     as.integer(user$ldap_email_verified %||% 0L)

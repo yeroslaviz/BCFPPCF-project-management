@@ -25,6 +25,10 @@ ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
 
 ### 2026-10-19
 
+- Added direct LDAP profile retrieval for Shiny Server OSS, NGS-style group/PI
+  matching, and automatic or mandatory-choice billing codes from the supplied
+  budget-holder CSV. Removed repeated contact verification warnings from the
+  requester form while retaining staff and mail verification checks.
 - Added Ubuntu's `libuv1-dev` build dependency required by the locked `fs`
   package, and enabled `renv` package-cache symlinks so completed package
   installs are reused across releases without copying full libraries.

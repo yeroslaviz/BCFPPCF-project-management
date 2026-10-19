@@ -92,6 +92,7 @@ APT_PACKAGES=(
   libfribidi-dev
   libharfbuzz-dev
   libjpeg-dev
+  ldap-utils
   libldap2-dev
   libpng-dev
   libuv1-dev
@@ -122,7 +123,7 @@ fi
 
 ((${#missing_packages[@]} == 0)) || die "Missing Ubuntu packages: ${missing_packages[*]}. Re-run with --install-system after review."
 
-for command_name in apache2ctl curl flock git java javac openssl python3 rsync sha256sum sqlite3; do
+for command_name in apache2ctl curl flock git java javac ldapsearch openssl python3 rsync sha256sum sqlite3; do
   require_command "${command_name}"
 done
 [[ -x "${PPSV_R_BIN}/R" && -x "${PPSV_R_BIN}/Rscript" ]] || die "PPSV requires R and Rscript under ${PPSV_R_BIN}; install R 4.6.1 side-by-side first."

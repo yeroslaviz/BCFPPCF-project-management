@@ -31,6 +31,8 @@ separated under `ppsvf-app/R/`:
 | `config.R` | PPSV vocabulary, allowlists, environment parsing |
 | `context.R` | initialized runtime context and trusted identity entry point |
 | `auth.R` | role derivation and server-side permission policy |
+| `ldap.R` | authenticated-username profile lookup and LDIF decoding |
+| `billing.R` | budget CSV parsing, LDAP group matching, billing-code selection |
 | `database.R` | SQLite connection, schema migrations, LDAP profile synchronization |
 | `validation.R` | service and inquiry form contracts |
 | `repository.R` | authorized reads and administrative queries |
@@ -69,6 +71,8 @@ file is `/etc/ppsvf-app/ppsvf-app.env`, root-owned, not a symlink, and mode
 | Variable | Meaning |
 |---|---|
 | `AUTH_MODE` | `ldap` in production; `test` only in an isolated test harness |
+| `LDAP_URI`, `LDAP_BASE_DN` | Profile lookup server and search base; same defaults as NGS |
+| `PPSV_BUDGET_HOLDERS_FILE` | Optional catalogue override; defaults to `budget_holders.csv` in the app directory |
 | `PPSV_PUBLIC_URL` | Canonical `https://ppcf-vm.biochem.mpg.de/ppsvf-app/` URL |
 | `PPSV_R_BIN` | Pinned PPSV R binary directory; this release requires `/opt/R/4.6.1/bin` |
 | `PPSV_DB_FILE` | SQLite path directly inside `PPSV_DATA_ROOT/database` |

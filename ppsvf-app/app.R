@@ -254,10 +254,7 @@ number_control <- function(id, label, value = NULL, required = FALSE, help = NUL
 readonly_identity_control <- function(id, label, value, verified = TRUE) {
   value <- scalar_text(value)
   if (!nzchar(value) || !isTRUE(verified)) {
-    return(tagList(
-      text_control(id, label, value, required = TRUE),
-      tags$p("This value was not verified by LDAP. Staff will see it as unverified.", class = "field-help warning-text")
-    ))
+    return(text_control(id, label, value, required = TRUE))
   }
   tags$div(
     class = "form-group",
@@ -274,6 +271,48 @@ readonly_identity_control <- function(id, label, value, verified = TRUE) {
   )
 }
 
+research_group_value <- function(group) {
+  matches <- ppsv_group_budgets(group, app_context$config)
+  if (nrow(matches)) matches$pi[[1L]] else scalar_text(group)
+}
+
+billing_control_ui <- function(prefix, group, values = list()) {
+  holders <- ppsv_budget_holders(app_context$config)
+  matches <- ppsv_group_budgets(group, app_context$config)
+  saved <- field_value(values, "billing_code")
+  same_group <- identical(trim_scalar(group), field_value(values, "research_group"))
+  if (!same_group) saved <- ""
+  codes <- unique(matches$cost_center)
+  if (length(codes) == 1L && (!nzchar(saved) || saved == codes[[1L]])) {
+    return(tags$div(
+      tags$input(id = paste0(prefix, "billing_code"), type = "text",
+        class = "form-control identity-readonly", value = codes[[1L]],
+        readonly = "readonly", `aria-readonly` = "true"),
+      tags$p("Filled automatically from your PI's cost centre.", class = "field-help")
+    ))
+  }
+  available <- if (nrow(matches)) matches else holders
+  choices <- if (nrow(available)) {
+    setNames(available$cost_center, paste(available$pi, "-", available$cost_center))
+  } else character()
+  choices <- choices[!duplicated(unname(choices))]
+  if (nzchar(saved) && !saved %in% choices) {
+    choices <- c(choices, setNames(saved, paste(saved, "(saved with this request)")))
+  }
+  tagList(
+    selectInput(paste0(prefix, "billing_code"), NULL,
+      choices = c("Choose a cost centre" = "", choices),
+      selected = saved, selectize = FALSE, width = "100%"),
+    tags$p(if (!nrow(holders)) {
+      "Billing codes are unavailable. Please contact PPSV before submitting a service request."
+    } else if (length(codes) > 1L) {
+      "Your PI has several cost centres. Choose one to continue."
+    } else {
+      "No PI match was found for this group. Choose the appropriate budget holder and cost centre."
+    }, class = "field-help")
+  )
+}
+
 contact_fields_ui <- function(prefix, user, values = list(), include_billing = TRUE) {
   user <- record_list(user)
   values <- record_list(values)
@@ -283,6 +322,11 @@ contact_fields_ui <- function(prefix, user, values = list(), include_billing = T
     nzchar(user_field(user, "display_name", "name", "full_name"))
   email_verified <- is_truthy(user_field(user, "email_verified", "ldap_email_verified", default = "false")) &&
     nzchar(user_field(user, "email", "mail"))
+  if (length(values)) {
+    name_verified <- is_truthy(field_value(values, "contact_name_verified", "false"))
+    email_verified <- is_truthy(field_value(values, "contact_email_verified", "false"))
+  }
+  group <- field_value(values, "research_group", research_group_value(user_field(user, "research_group", "department")))
 
   tags$section(
     class = "form-section",
@@ -296,12 +340,21 @@ contact_fields_ui <- function(prefix, user, values = list(), include_billing = T
       column(6, readonly_identity_control(paste0(prefix, "contact_email"), "E-mail", email_value, email_verified))
     ),
     fluidRow(
-      column(6, text_control(paste0(prefix, "research_group"), "Research group", field_value(values, "research_group", user_field(user, "research_group", "department")), required = TRUE)),
+      column(6, if (!length(values) && nzchar(user_field(user, "research_group", "department"))) {
+        tags$div(class = "form-group",
+          tags$label(required_label("Research group"), `for` = paste0(prefix, "research_group")),
+          tags$input(id = paste0(prefix, "research_group"), type = "text",
+            class = "form-control identity-readonly", value = group,
+            readonly = "readonly", `aria-readonly` = "true"),
+          tags$p("From your institute account.", class = "field-help"))
+      } else text_control(paste0(prefix, "research_group"), "Research group", group, required = TRUE)),
       column(6, text_control(paste0(prefix, "phone"), "Phone", field_value(values, "phone", user_field(user, "phone", "telephone")), required = TRUE))
     ),
     if (include_billing) fluidRow(
-      column(6, text_control(paste0(prefix, "billing_code"), "Billing code", field_value(values, "billing_code"), required = TRUE)),
-      column(6, tags$div(class = "context-note", icon("circle-info"), "A billing code is collected for project attribution; this application does not calculate costs."))
+      column(6,
+        tags$label(required_label("Billing code"), `for` = paste0(prefix, "billing_code")),
+        uiOutput(paste0(prefix, "billing_control"))),
+      column(6, tags$div(class = "context-note", icon("circle-info"), "Billing codes are matched to your research group's PI."))
     )
   )
 }
@@ -1035,6 +1088,21 @@ server <- function(input, output, session) {
     )
   })
 
+  output$new_billing_control <- renderUI({
+    user <- identity()
+    req(user)
+    group <- user_field(user, "research_group", "department")
+    if (!nzchar(group)) group <- trim_scalar(input$new_research_group)
+    billing_control_ui("new_", research_group_value(group))
+  })
+
+  output$edit_billing_control <- renderUI({
+    detail <- selected_request()
+    req(detail)
+    group <- scalar_text(input$edit_research_group, field_value(detail, "research_group"))
+    billing_control_ui("edit_", group, detail)
+  })
+
   input_payload <- function(prefix, keys) {
     values <- lapply(keys, function(key) input[[paste0(prefix, key)]])
     names(values) <- keys
@@ -1086,6 +1154,8 @@ server <- function(input, output, session) {
 
     result <- call_with_notice({
       require_permission("create_request")
+      payload <- ppsv_apply_verified_identity(payload, identity())
+      payload <- ppsv_apply_billing(payload, identity(), app_context$config)
       local_validate_payload(payload, kind)
       backend_call(
         "create_request",
@@ -1241,6 +1311,8 @@ server <- function(input, output, session) {
     if (kind == "service") payload$service_module_slug <- field_value(detail, "service_module_slug")
     result <- call_with_notice({
       require_permission("edit_request", detail)
+      payload <- ppsv_apply_billing(payload,
+        list(research_group = payload$research_group), app_context$config, current = detail)
       local_validate_payload(payload, kind)
       backend_call("update_request", id = request_identifier(detail), payload = payload, user = identity())
     }, success = "Request updated.")

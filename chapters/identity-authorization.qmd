@@ -28,13 +28,37 @@ loopback-only; bypassing Apache would bypass this identity trust boundary.
 
 The username is consequently visible in the browser URL and may appear in
 access logs. Do not put tokens, passwords, email addresses, or other secrets in
-the query string. LDAP profile headers are still used when available; an
-unavailable header is not substituted from editable form data.
+the query string. LDAP profile headers are still used when available. When
+profile headers are missing, the app runs a bounded `ldapsearch` lookup for
+the authenticated username, using the same LDAP configuration as NGS. This
+retrieves `cn` (person's name), `mail`, `ou` (research group), and
+`telephoneNumber`. Editable form data never becomes a verified profile.
+Ubuntu's `ldap-utils` supplies the lookup command and is required by the
+deployment preflight. The default lookup uses the NGS directory servers and
+anonymous searches. If nondefault `LDAP_*` settings are needed, also put them
+in the runtime user's private `/home/ppsvf-shiny-user/.Renviron` after
+provisioning; Shiny's login-style launcher can drop the systemd environment.
+Keep that file mode `0600`, particularly if a read-only LDAP bind account is
+configured.
+
+The group key uses text inside parentheses in `ou` when present (for example,
+`Research group (Cox)` becomes `Cox`). As in NGS, it matches the budget holder's
+full name, name, surname, then a literal partial name match. The matching PI
+appears as the research group. The user's `cn` is not used as the PI.
+
+Service billing codes come from `ppsvf-app/budget_holders.csv`, or the path in
+`PPSV_BUDGET_HOLDERS_FILE`. A single matching code is automatic. Multiple codes
+require a choice and start empty on each new request. If no PI matches, the
+requester must choose a holder/code from the catalogue. Backend validation
+enforces these rules even if a form event is forged. Existing request billing
+snapshots remain available when editing after the catalogue changes.
 
 Usernames are normalized case-insensitively. LDAP profile values and their
 verification flags are synchronized at login, and the application records the
 last login. A missing LDAP name or email may be supplied in a request, but is
-marked unverified and is not promoted to a trusted mail identity.
+marked unverified and is not promoted to a trusted mail identity. Requesters
+can enter missing contact values without repeated verification warnings;
+staff still see unverified contact snapshots.
 
 ## Fixed role allowlist
 

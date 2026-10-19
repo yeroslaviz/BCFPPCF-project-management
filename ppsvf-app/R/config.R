@@ -132,6 +132,7 @@ ppsv_config <- function(overrides = list()) {
   )
   config <- list(
     app_dir = app_dir,
+    budget_holders_file = Sys.getenv("PPSV_BUDGET_HOLDERS_FILE", ""),
     db_file = Sys.getenv("PPSV_DB_FILE", "/srv/ppsv-app-data/database/ppsv_projects.db"),
     pool_root = Sys.getenv("PPSV_POOL_ROOT", "/fs/pool/pool-ppsvf-projects"),
     pool_expected_source = Sys.getenv("PPSV_POOL_EXPECTED_SOURCE", ""),
@@ -155,6 +156,9 @@ ppsv_config <- function(overrides = list()) {
     logo_path = Sys.getenv("PPSV_LOGO_PATH", file.path(app_dir, "www", "ppsv-logo.png"))
   )
   config[names(overrides)] <- overrides
+  if (!nzchar(ppsv_trim(config$budget_holders_file))) {
+    config$budget_holders_file <- file.path(config$app_dir, "budget_holders.csv")
+  }
 
   if (!is.finite(config$max_upload_mb) || config$max_upload_mb <= 0) {
     stop("PPSV_MAX_UPLOAD_MB must be a positive number.", call. = FALSE)

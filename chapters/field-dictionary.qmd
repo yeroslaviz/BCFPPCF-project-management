@@ -71,9 +71,9 @@ required positive number.
 |---:|---|---|---|
 | 1 | Name | `contact_name` | Text; LDAP value is read-only and verified. A missing LDAP value may be entered and is marked unverified. |
 | 2 | E-mail | `contact_email` | Valid email syntax; LDAP value is read-only and verified. A manual value is marked unverified. |
-| 3 | Research group | `research_group` | Text, prefilled when LDAP provides it. |
+| 3 | Research group | `research_group` | LDAP `ou` mapped to the PI as in NGS; read-only on new requests when available. Editable fallback if absent. |
 | 4 | Phone | `phone` | Text, prefilled when LDAP provides it. |
-| 5 | Billing code | `billing_code` | Text. It is project attribution only; the system does not calculate costs. |
+| 5 | Billing code | `billing_code` | PI cost centre from the budget CSV. One is automatic; multiple require a dropdown choice with an empty default. No PI match allows a catalogue choice. |
 | 6 | Protein name | `protein_name` | Text. |
 | 7 | UniProt ID | `uniprot_id` | Text. |
 | 8 | Source organism | `source_organism` | Text. |

@@ -326,7 +326,9 @@ testthat::test_that("production current_user rejects direct identity injection",
     headers = list(
       HTTP_X_REMOTE_USER = "alice",
       HTTP_X_REMOTE_NAME = "Alice",
-      HTTP_X_REMOTE_EMAIL = "alice@example.org"
+      HTTP_X_REMOTE_EMAIL = "alice@example.org",
+      HTTP_X_REMOTE_GROUP = "Test research group",
+      HTTP_X_REMOTE_PHONE = "+49 123"
     ),
     ctx = ldap_ctx
   )

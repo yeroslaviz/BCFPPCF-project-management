@@ -17,7 +17,7 @@ ppsv_backend_dir <- if (!is.null(ppsv_loader_file)) {
 }
 
 for (ppsv_backend_file in c(
-  "config.R", "auth.R", "validation.R", "database.R", "context.R",
+  "config.R", "auth.R", "validation.R", "billing.R", "database.R", "ldap.R", "context.R",
   "repository.R", "storage.R", "mail.R", "outbox_repository.R", "lifecycle.R", "pdf.R",
   "acceptance.R"
 )) {

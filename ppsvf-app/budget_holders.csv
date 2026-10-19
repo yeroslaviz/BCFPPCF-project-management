@@ -1,0 +1,106 @@
+,,,,,,Stand 01.01.2026
+Spalte1,budget holder,cost_center,description,Spalte4,Infos,department
+X,Mayr,BIOC-KÄLTE,ZA Kältezentrale,,,Gebäude
+X,Kaminidou,GÄSTEHAUS,Gästehaus Biochemie,,,Verwaltung
+X,Briggs,K030,Abt. Briggs,,,Briggs
+X,Tachibana,K050,Abt. Tachibana,,,Tachibana
+X,Min-Weißenhorn,K050B,Transgenic Service,,,Tachibana
+X,Schneider,K060,Bibliothek,,,Bibliothek
+X,Schneider,K061,Informationsvermittl,,,Bibliothek
+X,Schulman,K085,Abt. Schulman ,,,Schulman
+X,Schwille,K090,Abt. Schwille,,,Schwille
+X,Huber,K100,Abt. Huber,,,Huber
+X,Borgwardt,K110,Abt. Borgwardt,,,Borgwardt
+X,Hartl,K120,Abt.Hartl,,,Hartl
+X,Franz,K140,Rechenzentrum ,,,RZ
+X,Franz,K140B,Rechenzentrum mit BI,,,RZ
+X,Ludowici,K140E,RZ Telefon-Service,,,Verwaltung
+X,Pace,K160,Tierhaus,,,Tierhaus
+X,Schuster Barbara,K160A,Tierhaus Lehrlinge,,,Tierhaus
+X,Pace,K160M,Maushaltung,,,Tierhaus
+X,Pace,K160PI,Tierhaus Neuro,,,PSY Tierhaus
+X,Pace,K160R,Rattenhaltung,,,Tierhaus
+X,Pace,K161,neues Tierhaus/ normale Bestellungen bitte auf TBIO/K111,,,Tierhaus
+X,Baumeister,K190,Abt.Baumeister,,,Baumeister
+X,Conti,K230,Abt. Conti,,,Conti
+X,Basquin,K230B,Crystallography,,,Conti
+X,Mann,K250,Abt. Mann,,,Mann
+X,Uebel,K350,Core-Facility ,,,corefacility
+X,Basquin,K350A,CF ProteinProduction,,,corefacility
+X,Steigenberger,K350B,CF Mass Spectrometry,,,corefacility
+X,Spitaler,K350C,CF Imaging Facility,,,corefacility
+X,Bollschweiler,K350D,CF Kryo - EM,,,corefacility
+X,Kim,K350F,CF NGS Facility,,,corefacility
+X,Pace,K352,Immunisierung Kaninc,,,Tierhaus
+X,Goldschmitt,K382,Dist.Lecture Sem.Ser,,,Murray
+X,Gabriel,K399,NWG Pool-Kost,,,GL
+X,Dahyia,K400,NWG Zentral Autoklav,,,NWG
+X,Gabriel,K400A,NWG BT LM BIOC,,,NWG
+X,Jasnin,K404OH,Jasnin OH,,,Plitzko
+X,Müller/Zachariae,K409,Pool Müller/Zacharia,,,Müller/Zachariae
+X,Mueller,K411,FG Müller ,,,Müller
+X,Mueller,K411A,FG Müller Fliegenküche,,,Müller
+X,Zachariae,K412,FG Zachariae  ,,,Zachariae 
+X,Heuer-Jungemann,K419OH,Heuer-Jungemann OH,,,Heuer-Jungemann
+X,Cox,K435,Cox,,,Cox
+,Jungmann,K436 ,"Jungmann (Stammkostenstelle, bitte Vorhaben verwenden)",,,NWG
+X,Jungmann,MFWABIOC002,Jungmann,,,NWG
+X,Nakchbandi,K440,Nakchbandi,,,Conti
+X,Hernandez,K441,Interact/IMPRS,,,IMPRS
+X,Murray,K442,Murray,,,Murray
+X,Plitzko,K445,Plitzko,,,Plitzko
+X,Nedialkova,K446,"Nedialkova  (Stammkostenstelle, bitte Vorhaben verwenden)",,,NWG
+,Nedialkova,MTNABIOC0006,Nedialkova ,,,NWG
+,Sokolova,K449,"Sokolova (Stammkostenstelle, bitte Vorhaben verwenden)",,,NWG
+,Sokolova,MLMABIOC0001,Sokolova  ,,,NWG
+X,Mayr,K450,Pool techn.Anlagen Wissenschaft,,,TB
+X,Milles,K451,Milles    ,,,NWG
+X,Milles,K451OH,Milles OH,,,NWG
+X,Riggi,K452,Riggi,,,Briggs
+,Schuller,K454,"Schuller (Stammkostenstelle, bitte Vorhaben verwenden)",,,NWG
+,Schuller,MLMABIOC0002,Schuller   ,,,NWG
+,Mann,K455OH,Nordmann/Mann OH,,,Mann
+X,Ludowici,K500,Verwaltung Allgemein,,,Verwaltung
+X,Ludowici,K501,"Hauskosten(Vers,St..",,,Verwaltung
+X,Wied,K502,Lehrwerkstatt,,,Verwaltung
+X,Ludowici,K502A,Kaufm. Lehrlinge,,,Verwaltung
+X,Roth,K503,Gärtnerei,,,Verwaltung
+X,Kohlhauufl-Morasanu,K504,Sanitärtechnik,,,TB
+X,Kohlhauufl-Morasanu,K505,Lüftung/Heizung/Dampferz.,,,TB
+X,Kohlhäufl-Morasanu,K506,Elektrotechnik,,,TB
+X,Ehrnsperger,K507,Feinmechnaik,,,TB
+X,Kleemann,K508,Dienstwohnungen,,,Verwaltung
+X,Ludowici,K509,Kantine/Cafeteria,,,Verwaltung
+X,Erhart,K510,wiss.Pers.Pool,,,Verwaltung
+X,Verwaltung,K511,Kita Biokids,,,Verwaltung
+X,Verwaltung,K512,Diverse Mieten (Sportverein),,,Verwaltung
+X,Verwaltung,K513,IZB ,,,Verwaltung
+X,Kohlhauufl-Morasanu,K514,Elektronik,,,TB
+X,Kohlhauufl-Morasanu,K517,Brandschutztechnik/T,,,TB
+X,Kohlhauufl-Morasanu,K520,Reparatur Technik,,,TB
+X,Kohlhauufl-Morasanu,K523,Leittechnik/MSR-Tech,,,TB
+X,Ludowici,K530,Wäschestelle,,,Verwaltung
+X,Mayr,K540,"Konferenz-,Seminarrä",,,TB
+X,Tatzel,K550,Geschäftsf. Leitung,,,GL
+X,Tatzel,K550C,Bauko Campus 2030,,,GL
+X,Menzfeld,K551,Öffentlichkeitsarbeit,,,GL
+X,Hernandez,K552,Career Development,,,GL
+X,Curic,K553,Ausbildung Bio.Lab,,,GL
+X,Hernandez,K554,Nachwuchsförderung,,,GL
+X,Menzfeld,K557,Foto+Grafik,,,GL
+X,Zbiegly,K558,EU Office,,,GL
+X,Dahyia,K559,Arbeitssicherh.,,,GL
+X,Nickel,K559a,MPI Arbeiss.ASI,,,GL
+X,Roth,K560,Abfall Entsorgung,,,Verwaltung
+X,Dahyia,K560A,Sonderentsorgung,,,GL
+X,Kohlhauufl-Morasanu,K561,Techn.Betrieb,,,TB
+X,Barabas,K563,Fuhrpark,,,Verwaltung
+X,Ludowici,K565,Hausdienste,,,Verwaltung
+X,Reichert,K566,Arbeitsmedizin,,,Verwaltung
+X,Vogl,K566B,Betriebl.Gesundheit,,,Verwaltung
+X,Kohlhauufl-Morasanu,K567,Kältetechnik,,,TB
+X,Mayr,K570,Baukoordination,,,TB
+X,Betriebsrat,K580,Betriebsrat,,,Betriebsrat
+X,Schneider,K585,Gleichstellungsbeauftragte,,,Verwaltung
+X,Thoma,K590,Interne Logistik,,,Verwaltung
+X,Waldmann,MPIVERRA,MPI/CAFM,,,TB

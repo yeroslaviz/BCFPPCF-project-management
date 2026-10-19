@@ -16,6 +16,7 @@ inquiries. It includes:
 
 - workbook-derived submission forms and validation;
 - LDAP-prefilled requester profiles and allowlist-derived roles;
+- LDAP research-group matching and PI-based billing codes from `budget_holders.csv`;
 - request ownership, staff assignment, seven-state status history, and soft
   archive;
 - input and result files stored outside the web root with SHA-256 checksums;
@@ -38,6 +39,13 @@ handoff), and proxies HTTP and WebSocket traffic to Shiny Server on loopback.
 Production must use `AUTH_MODE=ldap` and
 `TRUST_PROXY_AUTH_USER_QUERY=1`; test-mode identities are only for automated
 tests and local development.
+
+The app retrieves missing profile attributes directly from LDAP using
+`ldapsearch`, as in NGS. `ou` identifies the research group; `cn` is the person's
+name. The group is matched to the PI in `ppsvf-app/budget_holders.csv` (the
+supplied budget export and NGS-style CSVs are supported). One matching cost
+centre fills automatically; several produce a required dropdown with an empty
+default. `PPSV_BUDGET_HOLDERS_FILE` can select another catalogue path.
 
 Mutable state is outside immutable releases:
 
