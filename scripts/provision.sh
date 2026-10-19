@@ -145,11 +145,13 @@ log "TLS key, SAN, expiry, leaf order, and chain validated."
 # permissions, environment files, or service configuration.
 validate_pool_destination
 validate_backup_destination
+[[ ! -L "${PPSV_RUNTIME_HOME}" ]] || die "Refusing a symbolic link for the runtime home."
 
 # Snapshot every managed configuration file before the first replacement so a
 # later Apache/systemd failure cannot leave a mixed old/new installation.
 config_targets=(
   /etc/ppsvf-app/ppsvf-app.env
+  ${PPSV_RUNTIME_HOME}/.Renviron
   /etc/ssl/certs/ppsvf-app-fullchain.pem
   /etc/ssl/private/ppsvf-app.key
   /etc/shiny-server/shiny-server.conf
@@ -191,7 +193,9 @@ done
 
 getent group "${APP_RUN_GROUP}" >/dev/null || die "Required runtime/pool group does not exist: ${APP_RUN_GROUP}"
 if ! getent passwd "${APP_RUN_USER}" >/dev/null; then
-  useradd --system --gid "${APP_RUN_GROUP}" --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "${APP_RUN_USER}"
+  useradd --system --gid "${APP_RUN_GROUP}" --home-dir "${PPSV_RUNTIME_HOME}" --no-create-home --shell /usr/sbin/nologin "${APP_RUN_USER}"
+else
+  usermod --home "${PPSV_RUNTIME_HOME}" --no-create-home "${APP_RUN_USER}"
 fi
 actual_primary_group="$(id -gn "${APP_RUN_USER}")"
 [[ "${actual_primary_group}" == "${APP_RUN_GROUP}" ]] || die "${APP_RUN_USER} primary group is ${actual_primary_group}; expected ${APP_RUN_GROUP}."
@@ -209,6 +213,8 @@ install -d -o root -g "${APP_RUN_GROUP}" -m 0750 "${PPSV_RELEASES_ROOT}"
 [[ ! -L "${PPSV_DATA_ROOT}" && ! -L "${PPSV_DATA_ROOT}/database" && ! -L "${RENV_PATHS_CACHE}" && ! -L "${PPSV_FALLBACK_ROOT}" ]] || die "Refusing a symbolic link in persistent storage."
 [[ ! -e "${PPSV_DATA_ROOT}/ppsv_projects.db" ]] || die "An older group-accessible database exists at ${PPSV_DATA_ROOT}/ppsv_projects.db; move it to the private database directory with services stopped before provisioning."
 install -d -o root -g "${APP_RUN_GROUP}" -m 0750 "${PPSV_DATA_ROOT}"
+install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 "${PPSV_RUNTIME_HOME}"
+install -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0600 "${SCRIPT_DIR}/renv-runtime-environment" "${PPSV_RUNTIME_HOME}/.Renviron"
 install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 "${PPSV_DATA_ROOT}/database"
 install -d -o "${APP_RUN_USER}" -g "${APP_RUN_GROUP}" -m 0700 "${RENV_PATHS_CACHE}"
 [[ ! -L "${PPSV_DATA_ROOT}/alerts" ]] || die "Refusing a symbolic link in alert state storage."

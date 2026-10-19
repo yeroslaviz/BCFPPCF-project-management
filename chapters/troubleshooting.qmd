@@ -56,6 +56,26 @@ normally means Shiny is down or not listening. Confirm the active release has
 `app.R`, `renv.lock`, and its restored library, then use the deployment or
 rollback script. Do not copy mutable state into the release to make it start.
 
+If the Shiny log reports that `/home/ppsvf-shiny-user` does not exist or
+`renv` cannot create `.cache/R/renv`, the runtime account's login home is not
+provisioned. Pull the current repository release, then rerun the idempotent
+provisioning script before deployment; it sets the service account's home to
+`/srv/ppsv-app-data/runtime-home` and installs private R cache settings there.
+Check the result with:
+
+```bash
+getent passwd ppsvf-shiny-user
+sudo stat -c '%U:%G %a %n' /srv/ppsv-app-data/runtime-home \
+  /srv/ppsv-app-data/runtime-home/.Renviron
+sudo scripts/verify_deployment.sh --skip-public
+```
+
+The `su: ignoring --preserve-environment` line is emitted by Shiny Server's
+login-user switch. The important checks are that the passwd home exists, is
+owned by `ppsvf-shiny-user:b_profa` with mode `0700`, and that its `.Renviron`
+is mode `0600`. Do not create a home under `/home` as a workaround or make the
+R cache globally writable.
+
 ## LDAP prompt succeeds but the application has no identity
 
 Confirm only non-secret settings and the active vhost:

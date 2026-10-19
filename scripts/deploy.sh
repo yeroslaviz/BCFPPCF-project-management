@@ -66,6 +66,7 @@ getent passwd "${APP_RUN_USER}" >/dev/null || die "Runtime account does not exis
 [[ "$(id -gn "${APP_RUN_USER}")" == "${APP_RUN_GROUP}" ]] || die "Runtime account does not use group ${APP_RUN_GROUP}."
 validate_private_database_storage
 validate_private_renv_cache
+validate_private_runtime_home
 validate_pool_destination
 probe_pool_write_as_app "${PPSV_POOL_ROOT}" || die "Runtime account cannot create and remove a directory in the project pool."
 runuser -u "${APP_RUN_USER}" -- test -w "${PPSV_FALLBACK_ROOT}" || die "Runtime account cannot write fallback storage."
@@ -163,7 +164,7 @@ log "Restoring locked R dependencies into staged release ${RELEASE_ID}."
 (
   cd "${STAGING_ROOT}/ppsvf-app"
   runuser -u "${APP_RUN_USER}" -- env \
-    HOME="${RENV_PATHS_CACHE}" \
+    HOME="${PPSV_RUNTIME_HOME}" \
     RENV_PROJECT="${STAGING_ROOT}/ppsvf-app" \
     RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" \
     R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache" \
@@ -202,7 +203,7 @@ systemctl stop shiny-server.service
 log "Applying transactional database migrations."
 (
   cd "${STAGING_ROOT}/ppsvf-app"
-  runuser -u "${APP_RUN_USER}" -- env HOME="${RENV_PATHS_CACHE}" PPSV_RESET_DB=0 RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache" "${PPSV_R_BIN}/Rscript" setup_database.R
+  runuser -u "${APP_RUN_USER}" -- env HOME="${PPSV_RUNTIME_HOME}" PPSV_RESET_DB=0 RENV_PATHS_CACHE="${RENV_PATHS_CACHE}" R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache" "${PPSV_R_BIN}/Rscript" setup_database.R
 )
 [[ -f "${PPSV_DB_FILE}" ]] || die "Database initializer did not create ${PPSV_DB_FILE}."
 chown "${APP_RUN_USER}:${APP_RUN_GROUP}" "${PPSV_DB_FILE}"

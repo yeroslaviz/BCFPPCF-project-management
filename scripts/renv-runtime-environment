@@ -1,0 +1,2 @@
+RENV_PATHS_CACHE=/srv/ppsv-app-data/renv-cache
+R_USER_CACHE_DIR=/srv/ppsv-app-data/renv-cache/user-cache

@@ -33,6 +33,10 @@ ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
 - Directed `renv`'s user-level download/index cache into private persistent
   storage and set a valid runtime `HOME`, so R startup does not resolve a
   missing `/home/ppsvf-shiny-user` directory.
+- Updated provisioning to set the Shiny account's actual passwd home to
+  `/srv/ppsv-app-data/runtime-home` and install its private `.Renviron`; this
+  handles Shiny Server's login-style `su` launch, which resets `HOME` and
+  otherwise prevented `renv` from creating its cache.
 - Made the root-run deployment cleanliness check read-only for Git's index, so
   it cannot replace the operator checkout's `.git/index` with a root-owned one.
 - Stopped provisioning from changing the NFS pool root's ownership, mode, or

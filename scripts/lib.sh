@@ -69,6 +69,7 @@ load_runtime_env() {
   export PPSV_POOL_GROUP="${PPSV_POOL_GROUP:-b_profa}"
   export PPSV_RELEASES_ROOT="${PPSV_RELEASES_ROOT:-/srv/ppsvf-app/releases}"
   export PPSV_DATA_ROOT="${PPSV_DATA_ROOT:-/srv/ppsv-app-data}"
+  export PPSV_RUNTIME_HOME="${PPSV_RUNTIME_HOME:-${PPSV_DATA_ROOT}/runtime-home}"
   export PPSV_CURRENT_LINK="${PPSV_CURRENT_LINK:-/srv/shiny-server/ppsvf-app}"
   export PPSV_R_BIN="${PPSV_R_BIN:-/opt/R/4.6.1/bin}"
   export PPSV_DB_FILE="${PPSV_DB_FILE:-${PPSV_DATA_ROOT}/database/ppsv_projects.db}"
@@ -96,7 +97,7 @@ reexec_as_app() {
   unset BASH_ENV ENV CDPATH GLOBIGNORE R_ENVIRON R_ENVIRON_USER R_PROFILE R_PROFILE_USER
   unset R_LIBS R_LIBS_USER LD_PRELOAD PYTHONPATH PERL5OPT
   export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-  export LANG=C.UTF-8 LC_ALL=C.UTF-8 HOME="${RENV_PATHS_CACHE}" TMPDIR=/tmp
+  export LANG=C.UTF-8 LC_ALL=C.UTF-8 HOME="${PPSV_RUNTIME_HOME}" TMPDIR=/tmp
   export R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache"
   export PPSV_ENV_PRELOADED=1
   exec runuser -u "${APP_RUN_USER}" --preserve-environment -- "${script}" "$@"
@@ -105,6 +106,7 @@ reexec_as_app() {
 validate_runtime_paths() {
   require_absolute_path PPSV_RELEASES_ROOT "${PPSV_RELEASES_ROOT}"
   require_absolute_path PPSV_DATA_ROOT "${PPSV_DATA_ROOT}"
+  require_absolute_path PPSV_RUNTIME_HOME "${PPSV_RUNTIME_HOME}"
   require_absolute_path PPSV_CURRENT_LINK "${PPSV_CURRENT_LINK}"
   require_absolute_path PPSV_R_BIN "${PPSV_R_BIN}"
   require_absolute_path PPSV_DB_FILE "${PPSV_DB_FILE}"
@@ -135,6 +137,7 @@ validate_runtime_paths() {
     *) die "PPSV_FALLBACK_ROOT must be below PPSV_DATA_ROOT." ;;
   esac
   [[ "${RENV_PATHS_CACHE}" == "${PPSV_DATA_ROOT}/renv-cache" ]] || die "RENV_PATHS_CACHE must be the private ${PPSV_DATA_ROOT}/renv-cache directory."
+  [[ "${PPSV_RUNTIME_HOME}" == "${PPSV_DATA_ROOT}/runtime-home" ]] || die "PPSV_RUNTIME_HOME must be ${PPSV_DATA_ROOT}/runtime-home."
   [[ "${PPSV_R_BIN}" == /opt/R/4.6.1/bin ]] || die "PPSV_R_BIN must be /opt/R/4.6.1/bin for this release."
   [[ "${PPSV_BACKUP_DIR}" == "${PPSV_DATA_ROOT}/db-backups" ]] || die "PPSV_BACKUP_DIR must be ${PPSV_DATA_ROOT}/db-backups."
   [[ "${PPSV_BACKUP_DIR}" != "${PPSV_FALLBACK_ROOT}" ]] || die "Backup and fallback directories must differ."
@@ -215,6 +218,13 @@ validate_private_database_storage() {
 validate_private_renv_cache() {
   [[ -d "${RENV_PATHS_CACHE}" && ! -L "${RENV_PATHS_CACHE}" ]] || die "Private renv cache is missing or symbolic: ${RENV_PATHS_CACHE}"
   [[ "$(stat -c '%U:%G %a' "${RENV_PATHS_CACHE}")" == "${APP_RUN_USER}:${APP_RUN_GROUP} 700" ]] || die "renv cache must be ${APP_RUN_USER}:${APP_RUN_GROUP} mode 0700: ${RENV_PATHS_CACHE}"
+}
+
+validate_private_runtime_home() {
+  [[ -d "${PPSV_RUNTIME_HOME}" && ! -L "${PPSV_RUNTIME_HOME}" ]] || die "Private runtime home is missing or symbolic: ${PPSV_RUNTIME_HOME}"
+  [[ "$(stat -c '%U:%G %a' "${PPSV_RUNTIME_HOME}")" == "${APP_RUN_USER}:${APP_RUN_GROUP} 700" ]] || die "Runtime home must be ${APP_RUN_USER}:${APP_RUN_GROUP} mode 0700: ${PPSV_RUNTIME_HOME}"
+  [[ -f "${PPSV_RUNTIME_HOME}/.Renviron" && ! -L "${PPSV_RUNTIME_HOME}/.Renviron" ]] || die "Runtime R environment file is missing or symbolic: ${PPSV_RUNTIME_HOME}/.Renviron"
+  [[ "$(stat -c '%U:%G %a' "${PPSV_RUNTIME_HOME}/.Renviron")" == "${APP_RUN_USER}:${APP_RUN_GROUP} 600" ]] || die "Runtime R environment file must be ${APP_RUN_USER}:${APP_RUN_GROUP} mode 0600."
 }
 
 validate_backup_destination() {
@@ -358,9 +368,9 @@ verify_fallback_archive() {
 
 run_as_app() {
   if [[ $(id -un) == "${APP_RUN_USER}" ]]; then
-    HOME="${RENV_PATHS_CACHE}" R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache" "$@"
+    HOME="${PPSV_RUNTIME_HOME}" R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache" "$@"
   elif [[ ${EUID} -eq 0 ]]; then
-    runuser -u "${APP_RUN_USER}" -- env HOME="${RENV_PATHS_CACHE}" R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache" "$@"
+    runuser -u "${APP_RUN_USER}" -- env HOME="${PPSV_RUNTIME_HOME}" R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache" "$@"
   else
     die "This command must run as ${APP_RUN_USER} or root."
   fi
