@@ -1,20 +1,20 @@
 :root {
-  --ppsv-ink: #173d43;
-  --ppsv-ink-soft: #45636a;
-  --ppsv-teal-900: #164f53;
-  --ppsv-teal-800: #1d6265;
-  --ppsv-teal-700: #267477;
-  --ppsv-teal-100: #deefeb;
-  --ppsv-teal-050: #f1f8f6;
-  --ppsv-aqua: #80c7bb;
-  --ppsv-blue: #447c9e;
+  --ppsv-ink: #2c3e50;
+  --ppsv-ink-soft: #526779;
+  --ppsv-teal-900: #263b50;
+  --ppsv-teal-800: #2c3e50;
+  --ppsv-teal-700: #3498db;
+  --ppsv-teal-100: #eaf4ff;
+  --ppsv-teal-050: #f4f8fc;
+  --ppsv-aqua: #9bc7ed;
+  --ppsv-blue: #6f42c1;
   --ppsv-amber: #c48a2b;
   --ppsv-red: #b3434b;
-  --ppsv-border: #d9e3e2;
-  --ppsv-border-strong: #bdcdcb;
-  --ppsv-canvas: #f4f7f6;
+  --ppsv-border: #d9e0e7;
+  --ppsv-border-strong: #bcc9d5;
+  --ppsv-canvas: #f8f9fa;
   --ppsv-white: #ffffff;
-  --ppsv-shadow: 0 12px 30px rgba(23, 61, 67, 0.07);
+  --ppsv-shadow: 0 12px 30px rgba(44, 62, 80, 0.08);
   --ppsv-radius: 16px;
 }
 
@@ -217,8 +217,8 @@ textarea.form-control {
   place-items: center;
   padding: 28px;
   background:
-    radial-gradient(circle at 5% 0%, rgba(128, 199, 187, 0.28), transparent 30%),
-    linear-gradient(135deg, #edf6f3 0%, #f8faf9 55%, #e6f0ef 100%);
+    radial-gradient(circle at 5% 0%, rgba(155, 131, 209, 0.18), transparent 30%),
+    linear-gradient(135deg, #eef5fb 0%, #f8f9fa 55%, #eeeaf8 100%);
 }
 
 .auth-panel {
@@ -380,7 +380,7 @@ textarea.form-control {
   justify-content: space-between;
   padding: 24px 18px;
   border-right: 1px solid var(--ppsv-border);
-  background: #f9fbfa;
+  background: #f4f6f8;
 }
 
 .sidebar nav {
@@ -440,7 +440,7 @@ textarea.form-control {
 }
 
 .page-wrap {
-  width: min(1280px, 100%);
+  width: min(1680px, 100%);
   margin: 0 auto;
   padding: 38px clamp(20px, 4vw, 48px) 72px;
 }
@@ -1339,5 +1339,297 @@ textarea.form-control {
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* NGS comparison theme: navy header, institute marks, blue/lavender panels. */
+.ppsv-app-header {
+  position: relative;
+  min-height: 82px;
+  padding: 10px 22px;
+  border-bottom: 0;
+  color: #fff;
+  background: #2c3e50;
+  box-shadow: 0 3px 12px rgba(29, 47, 64, 0.16);
+  backdrop-filter: none;
+}
+
+.app-body {
+  min-height: calc(100vh - 168px);
+}
+
+.sidebar {
+  top: 82px;
+  height: calc(100vh - 82px);
+}
+
+.ppsv-app-header .header-container {
+  display: flex;
+  width: 100%;
+  min-height: 60px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.ppsv-app-header .brand-link {
+  min-width: 0;
+  color: #fff;
+}
+
+.ppsv-app-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ppsv-app-header .institute-logo {
+  display: block;
+  width: auto;
+  height: 46px;
+  object-fit: contain;
+}
+
+.ppsv-app-header .brand-title {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.ppsv-app-header .brand-title strong {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.ppsv-app-header .brand-title small {
+  margin-top: 3px;
+  color: #dce6ee;
+  font-size: 12px;
+}
+
+.ppsv-app-header .header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.ppsv-app-header .minerva-logo {
+  width: 46px;
+  height: 46px;
+  object-fit: contain;
+}
+
+.ppsv-app-header .user-summary {
+  gap: 12px;
+}
+
+.ppsv-app-header .user-copy strong,
+.ppsv-app-header .user-copy span {
+  color: #fff;
+}
+
+.ppsv-app-header .user-copy span {
+  opacity: 0.78;
+}
+
+.ppsv-app-header .avatar {
+  color: #2c3e50;
+  background: #eaf4ff;
+}
+
+.ppsv-app-footer {
+  display: flex;
+  min-height: 86px;
+  align-items: center;
+  padding: 12px 26px 18px;
+  border-top: 1px solid var(--ppsv-border);
+  background: #fff;
+}
+
+.ppsv-app-footer .footer-logo {
+  display: block;
+  width: min(460px, 100%);
+  height: auto;
+  max-height: 68px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.page-hero {
+  background:
+    linear-gradient(105deg, rgba(44, 62, 80, 0.98), rgba(52, 152, 219, 0.92)),
+    radial-gradient(circle at 80% 25%, rgba(255, 255, 255, 0.22), transparent 36%);
+}
+
+.metric-icon,
+.step-number,
+.side-nav-link:hover,
+.side-nav-link:focus,
+.side-nav-link.active,
+.empty-state > .fa-solid,
+.empty-state > .fas {
+  color: #2c3e50;
+  background: #eaf4ff;
+}
+
+.inquiry-selection {
+  border-color: #9bc7ed;
+  background: #eaf4ff;
+}
+
+.section-heading {
+  border-bottom-color: #e7e0f4;
+}
+
+.mail-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: #bcc9d5 transparent;
+}
+
+.mail-table-scroll > .shiny-html-output {
+  width: 100%;
+  max-width: 100%;
+}
+
+.mail-table-scroll table {
+  width: 100% !important;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.mail-table-scroll th,
+.mail-table-scroll td {
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  vertical-align: top !important;
+}
+
+.mail-table-scroll th:nth-child(1),
+.mail-table-scroll td:nth-child(1) {
+  width: 62px;
+}
+
+.mail-table-scroll th:nth-child(2),
+.mail-table-scroll td:nth-child(2) {
+  width: 130px;
+}
+
+.mail-table-scroll th:nth-child(3),
+.mail-table-scroll td:nth-child(3) {
+  width: 210px;
+}
+
+.mail-table-scroll th:nth-child(4),
+.mail-table-scroll td:nth-child(4) {
+  width: 110px;
+}
+
+.mail-table-scroll th:nth-child(5),
+.mail-table-scroll td:nth-child(5) {
+  width: 95px;
+}
+
+.mail-table-scroll th:nth-child(6),
+.mail-table-scroll td:nth-child(6) {
+  width: 270px;
+}
+
+.mail-table-scroll th:nth-child(n + 7),
+.mail-table-scroll td:nth-child(n + 7) {
+  width: 130px;
+}
+
+.form-control:focus,
+.selectize-input.focus {
+  border-color: #3498db;
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.16);
+}
+
+.btn-primary,
+.btn-primary:focus {
+  border-color: #2c3e50;
+  background: #2c3e50;
+}
+
+.btn-primary:hover,
+.btn-primary:active,
+.btn-primary:active:hover {
+  border-color: #1f2d3a;
+  background: #1f2d3a;
+}
+
+.btn-secondary,
+.btn-secondary:focus {
+  border-color: #c9b7ea;
+  color: #4f3980;
+  background: #f2ecff;
+}
+
+.btn-secondary:hover,
+.btn-secondary:active {
+  border-color: #9b83d1;
+  color: #3e2a6c;
+  background: #e8ddff;
+}
+
+@media (max-width: 700px) {
+  .ppsv-app-header {
+    min-height: 66px;
+    padding: 8px 14px;
+  }
+
+  .app-body {
+    min-height: calc(100vh - 134px);
+  }
+
+  .sidebar {
+    top: auto;
+    height: 66px;
+  }
+
+  .ppsv-app-header .header-container {
+    min-height: 48px;
+    gap: 10px;
+  }
+
+  .ppsv-app-header .institute-logo {
+    height: 34px;
+  }
+
+  .ppsv-app-header .brand-title strong {
+    font-size: 14px;
+  }
+
+  .ppsv-app-header .brand-title small {
+    display: none;
+  }
+
+  .ppsv-app-header .header-right {
+    gap: 8px;
+  }
+
+  .ppsv-app-header .minerva-logo {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ppsv-app-header .user-copy {
+    display: none;
+  }
+
+  .ppsv-app-footer {
+    min-height: 68px;
+    padding: 10px 16px 76px;
+  }
+
+  .ppsv-app-footer .footer-logo {
+    width: min(340px, 100%);
+    max-height: 50px;
   }
 }

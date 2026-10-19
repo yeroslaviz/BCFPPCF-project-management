@@ -801,24 +801,31 @@ server <- function(input, output, session) {
     tags$div(
       class = "app-frame",
       tags$header(
-        class = "topbar",
-        actionLink(
-          "brand_home",
-          tags$span(
-            class = "brand-lockup",
-            tags$img(src = "ppsv-logo.png", alt = "PPSV", class = "brand-logo"),
-            tags$span(class = "brand-title", tags$strong("Project Management"), tags$small("Protein Production & Structural Validation"))
-          ),
-          class = "brand-link"
-        ),
+        class = "topbar ppsv-app-header",
         tags$div(
-          class = "user-summary",
-          tags$div(
-            class = "user-copy",
-            tags$strong(user_field(user, "display_name", "name", "username")),
-            tags$span(paste0("@", user_field(user, "username")), " · ", tools::toTitleCase(role))
+          class = "header-container",
+          actionLink(
+            "brand_home",
+            tags$span(
+              class = "header-left",
+              tags$img(src = "logo.png", alt = "Max Planck Institute DNA mark", class = "header-logo institute-logo"),
+              tags$span(class = "brand-title", tags$strong("PPSV Project Management"), tags$small("Protein Production and Structural Validation Facility"))
+            ),
+            class = "brand-link"
           ),
-          tags$span(substr(toupper(user_field(user, "display_name", "username", default = "U")), 1L, 1L), class = "avatar")
+          tags$div(
+            class = "header-right",
+            tags$img(src = "minerva.png", alt = "Max Planck Society Minerva", class = "header-logo minerva-logo"),
+            tags$div(
+              class = "user-summary",
+              tags$div(
+                class = "user-copy",
+                tags$strong(user_field(user, "display_name", "name", "username")),
+                tags$span(paste0("@", user_field(user, "username")), " · ", tools::toTitleCase(role))
+              ),
+              tags$span(substr(toupper(user_field(user, "display_name", "username", default = "U")), 1L, 1L), class = "avatar")
+            )
+          )
         )
       ),
       tags$div(
@@ -840,6 +847,14 @@ server <- function(input, output, session) {
           )
         ),
         tags$main(class = "main-panel", uiOutput("active_page_ui"))
+      ),
+      tags$footer(
+        class = "ppsv-app-footer",
+        tags$img(
+          src = "bioinfo_core_concept_01_lockup.svg",
+          class = "footer-logo",
+          alt = "Max Planck Institute for Biochemistry — Bioinformatics Core Facility"
+        )
       )
     )
   })
@@ -1185,7 +1200,7 @@ server <- function(input, output, session) {
         tags$section(class = "content-card", tags$div(class = "card-heading", tags$div(tags$h2("Files"), tags$p("Inputs and results associated with this request."))), uiOutput("file_controls"), tableOutput("files_table"))
       ),
       uiOutput("staff_controls"),
-      tags$section(class = "content-card", tags$div(class = "card-heading", tags$div(tags$h2("Mail delivery"), tags$p("Submission, acknowledgement, and project acceptance attempts are recorded here."))), uiOutput("mail_controls"), tableOutput("request_mail_table"))
+        tags$section(class = "content-card", tags$div(class = "card-heading", tags$div(tags$h2("Mail delivery"), tags$p("Submission, acknowledgement, and project acceptance attempts are recorded here."))), uiOutput("mail_controls"), tags$div(class = "mail-table-scroll", tableOutput("request_mail_table")))
     )
   }
 
@@ -1619,6 +1634,24 @@ server <- function(input, output, session) {
     }
   })
 
+  mail_table_view <- function(data, include_request_code = FALSE) {
+    fields <- c(
+      "id", if (include_request_code) "request_code", "message_kind", "recipient",
+      "status", "attempt_count", "last_error", "next_attempt_at", "sent_at",
+      "ticket_url", "created_at"
+    )
+    keep <- intersect(fields, names(data))
+    view <- data[, keep, drop = FALSE]
+    labels <- c(
+      id = "ID", request_code = "Request", message_kind = "Message",
+      recipient = "Recipient", status = "Status", attempt_count = "Attempts",
+      last_error = "Delivery details", next_attempt_at = "Next attempt",
+      sent_at = "Sent", ticket_url = "Ticket link", created_at = "Created"
+    )
+    names(view) <- unname(labels[keep])
+    view
+  }
+
   request_mail_data <- reactive({
     detail <- selected_request()
     if (is.null(detail) || !can_do("view_request", detail)) return(data.frame())
@@ -1634,8 +1667,7 @@ server <- function(input, output, session) {
   output$request_mail_table <- renderTable({
     data <- request_mail_data()
     if (nrow(data) == 0L) return(data.frame(Message = "No visible delivery attempts."))
-    keep <- intersect(c("id", "message_kind", "recipient", "status", "attempt_count", "last_error", "next_attempt_at", "sent_at", "ticket_url", "created_at"), names(data))
-    data[, keep, drop = FALSE]
+    mail_table_view(data)
   }, striped = TRUE, hover = TRUE, na = "—")
 
   output$mail_controls <- renderUI({
@@ -1730,7 +1762,7 @@ server <- function(input, output, session) {
       tags$section(
         class = "content-card",
         tags$div(class = "card-heading", tags$div(tags$h2("Mail outbox"), tags$p("A saved request is not presented as delivered until mail succeeds.")), actionButton("refresh_mail_log", icon("rotate"), class = "btn btn-default icon-button")),
-        tableOutput("global_mail_table"),
+        tags$div(class = "mail-table-scroll", tableOutput("global_mail_table")),
         uiOutput("global_mail_controls")
       )
     )
@@ -1758,8 +1790,7 @@ server <- function(input, output, session) {
   output$global_mail_table <- renderTable({
     data <- global_mail_data()
     if (nrow(data) == 0L) return(data.frame(Message = "No visible mail records."))
-    keep <- intersect(c("id", "request_code", "message_kind", "recipient", "status", "attempt_count", "last_error", "next_attempt_at", "sent_at", "ticket_url", "created_at"), names(data))
-    data[, keep, drop = FALSE]
+    mail_table_view(data, include_request_code = TRUE)
   }, striped = TRUE, hover = TRUE, na = "—")
 
   output$global_mail_controls <- renderUI({
