@@ -28,6 +28,8 @@ ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
 - Added Ubuntu's `libuv1-dev` build dependency required by the locked `fs`
   package, and enabled `renv` package-cache symlinks so completed package
   installs are reused across releases without copying full libraries.
+- Aligned maintenance-lock validation with provisioning: lock files may be
+  owned by the runtime user inside the root-owned, non-writable lock directory.
 - Directed `renv`'s user-level download/index cache into private persistent
   storage and set a valid runtime `HOME`, so R startup does not resolve a
   missing `/home/ppsvf-shiny-user` directory.

@@ -370,7 +370,7 @@ acquire_lock() {
   local lock_file="$1"
   local lock_fd="${2:-9}"
   require_command flock
-  local lock_dir lock_dir_owner lock_dir_mode lock_dir_mode_value lock_owner
+  local lock_dir lock_dir_owner lock_dir_mode lock_dir_mode_value lock_owner lock_app_uid
   lock_dir="$(dirname "${lock_file}")"
   [[ -d "${lock_dir}" && ! -L "${lock_dir}" ]] || die "Lock directory is missing or unsafe: ${lock_dir}"
   lock_dir_owner="$(stat -c '%u' "${lock_dir}")"
@@ -395,7 +395,8 @@ acquire_lock() {
   [[ -f "${lock_file}" && ! -L "${lock_file}" ]] || die "Lock file is not a regular, non-symlink file: ${lock_file}"
   lock_owner="$(stat -c '%u' "${lock_file}")"
   if [[ "${lock_dir_owner}" == 0 ]]; then
-    [[ "${lock_owner}" == 0 ]] || die "Lock file in a root-owned directory must be owned by root: ${lock_file}"
+    lock_app_uid="$(id -u "${APP_RUN_USER}" 2>/dev/null || true)"
+    [[ "${lock_owner}" == 0 || ( -n "${lock_app_uid}" && "${lock_owner}" == "${lock_app_uid}" ) ]] || die "Lock file in a root-owned directory must be owned by root or ${APP_RUN_USER}: ${lock_file}"
   fi
   [[ -w "${lock_file}" ]] || die "Lock file is not writable by $(id -un): ${lock_file}"
   case "${lock_fd}" in
