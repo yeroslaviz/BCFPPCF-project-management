@@ -43,6 +43,9 @@ ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
 - Ran project-pool permission-probe metadata checks as the Shiny runtime user,
   since NFS root squashing correctly prevents the root-run verifier from
   traversing service-owned probe directories.
+- Corrected deployment verification to ignore Linux symlink mode bits when
+  checking release writability and to locate Shiny R workers by their executable
+  and working directory rather than assuming the app path appears in argv.
 - Made the root-run deployment cleanliness check read-only for Git's index, so
   it cannot replace the operator checkout's `.git/index` with a root-owned one.
 - Stopped provisioning from changing the NFS pool root's ownership, mode, or

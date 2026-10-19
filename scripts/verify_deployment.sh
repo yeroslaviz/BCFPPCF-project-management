@@ -182,7 +182,10 @@ if [[ -n "${active_app}" ]] && find "${active_app}" ! -user root -print -quit | 
 else
   pass "active release content is root-owned"
 fi
-if [[ -n "${active_app}" ]] && find "${active_app}" -perm /0022 -print -quit | grep -q .; then
+# renv intentionally symlinks restored packages into the private persistent
+# cache. Symlink mode bits are not meaningful on Linux (they display as 0777);
+# enforce release permissions on real directories and regular files only.
+if [[ -n "${active_app}" ]] && find "${active_app}" \( -type d -o -type f \) -perm /0022 -print -quit | grep -q .; then
   fail "active release contains group/other-writable content"
 else
   pass "active release is not group/other-writable"
@@ -215,7 +218,23 @@ fi
 local_status="$(curl --silent --output /dev/null --write-out '%{http_code}' --max-time 10 http://127.0.0.1:3838/ppsvf-app/ || true)"
 [[ "${local_status}" =~ ^(2|3)[0-9][0-9]$ ]] && pass "loopback application returned ${local_status}" || fail "loopback application returned ${local_status:-no response}"
 
-if ps -eo user=,args= | awk -v user="${APP_RUN_USER}" '$1 == user && /[Rr].*ppsvf-app/ {found=1} END {exit !found}'; then
+runtime_uid="$(id -u "${APP_RUN_USER}")"
+r_worker_found=0
+if [[ -n "${active_app}" ]]; then
+  while read -r process_id _process_name; do
+    [[ -n "${process_id:-}" ]] || continue
+    process_exe="$(readlink "/proc/${process_id}/exe" 2>/dev/null || true)"
+    process_exe="${process_exe##*/}"
+    [[ "${process_exe}" == R || "${process_exe}" == Rscript ]] || continue
+    process_uid="$(awk '/^Uid:/ {print $2; exit}' "/proc/${process_id}/status" 2>/dev/null || true)"
+    [[ "${process_uid}" == "${runtime_uid}" ]] || continue
+    process_cwd="$(readlink -f "/proc/${process_id}/cwd" 2>/dev/null || true)"
+    case "${process_cwd}" in
+      "${active_app}"|"${active_app}"/*) r_worker_found=1; break ;;
+    esac
+  done < <(ps -u "${APP_RUN_USER}" -o pid=,comm=)
+fi
+if ((r_worker_found == 1)); then
   pass "application R worker runs as ${APP_RUN_USER}"
 else
   fail "no PPSV R worker owned by ${APP_RUN_USER} was observed"
