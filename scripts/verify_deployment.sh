@@ -280,11 +280,15 @@ check_storage_writes() {
   local expected_group="$3"
   local probe="${root}/.ppsv-verify-$$"
   if runuser -u "${APP_RUN_USER}" -- bash -c 'umask 0007; mkdir "$1" && chmod 2770 "$1" && : >"$1/probe" && chmod 0660 "$1/probe"' bash "${probe}"; then
-    local directory_mode file_mode directory_group file_group
-    directory_mode="$(stat -c '%a' "${probe}")"
-    file_mode="$(stat -c '%a' "${probe}/probe")"
-    directory_group="$(stat -c '%G' "${probe}")"
-    file_group="$(stat -c '%G' "${probe}/probe")"
+    local directory_mode file_mode directory_group file_group directory_metadata file_metadata
+    if ! directory_metadata="$(runuser -u "${APP_RUN_USER}" -- stat -c '%a %G' "${probe}")" || \
+       ! file_metadata="$(runuser -u "${APP_RUN_USER}" -- stat -c '%a %G' "${probe}/probe")"; then
+      runuser -u "${APP_RUN_USER}" -- bash -c 'rm -f -- "$1/probe"; rmdir -- "$1"' bash "${probe}" 2>/dev/null || true
+      fail "runtime account could not inspect ${label} probe"
+      return
+    fi
+    read -r directory_mode directory_group <<<"${directory_metadata}"
+    read -r file_mode file_group <<<"${file_metadata}"
     runuser -u "${APP_RUN_USER}" -- bash -c 'rm -f -- "$1/probe" && rmdir -- "$1"' bash "${probe}" || fail "runtime account could not remove ${label} probe"
     [[ "${directory_mode}" == 2770 && "${file_mode}" == 660 ]] && pass "${label} creates 2770 directories and 0660 files" || fail "${label} created modes ${directory_mode}/${file_mode}, expected 2770/660"
     [[ "${directory_group}" == "${expected_group}" && "${file_group}" == "${expected_group}" ]] && pass "${label} children inherit group ${expected_group}" || fail "${label} child groups are ${directory_group}/${file_group}, expected ${expected_group}"

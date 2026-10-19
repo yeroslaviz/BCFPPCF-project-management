@@ -40,6 +40,9 @@ ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
   resets `HOME` and otherwise prevented `renv` from creating its cache.
 - Made the first deployment's verified pre-deployment backup use the staged
   app's restored R environment when no active PPSV release exists yet.
+- Ran project-pool permission-probe metadata checks as the Shiny runtime user,
+  since NFS root squashing correctly prevents the root-run verifier from
+  traversing service-owned probe directories.
 - Made the root-run deployment cleanliness check read-only for Git's index, so
   it cannot replace the operator checkout's `.git/index` with a root-owned one.
 - Stopped provisioning from changing the NFS pool root's ownership, mode, or
