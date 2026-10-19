@@ -97,6 +97,7 @@ reexec_as_app() {
   unset R_LIBS R_LIBS_USER LD_PRELOAD PYTHONPATH PERL5OPT
   export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   export LANG=C.UTF-8 LC_ALL=C.UTF-8 HOME=/nonexistent TMPDIR=/tmp
+  export R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache"
   export PPSV_ENV_PRELOADED=1
   exec runuser -u "${APP_RUN_USER}" --preserve-environment -- "${script}" "$@"
 }
@@ -357,9 +358,9 @@ verify_fallback_archive() {
 
 run_as_app() {
   if [[ $(id -un) == "${APP_RUN_USER}" ]]; then
-    "$@"
+    R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache" "$@"
   elif [[ ${EUID} -eq 0 ]]; then
-    runuser -u "${APP_RUN_USER}" -- "$@"
+    runuser -u "${APP_RUN_USER}" -- env R_USER_CACHE_DIR="${RENV_PATHS_CACHE}/user-cache" "$@"
   else
     die "This command must run as ${APP_RUN_USER} or root."
   fi

@@ -25,6 +25,8 @@ ticket auto-reply/requester test, and an off-host recovery/pool snapshot policy.
 
 ### 2026-10-19
 
+- Directed `renv`'s user-level download/index cache into private persistent
+  storage, so deployment works for the runtime account without a home folder.
 - Made the root-run deployment cleanliness check read-only for Git's index, so
   it cannot replace the operator checkout's `.git/index` with a root-owned one.
 - Stopped provisioning from changing the NFS pool root's ownership, mode, or
