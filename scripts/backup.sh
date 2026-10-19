@@ -38,7 +38,9 @@ if [[ -n "${PPSV_BACKUP_PROJECT_DIR:-}" ]]; then
     "${PPSV_RELEASES_ROOT}"/.*.staging.*/ppsvf-app) ;;
     *) die "Explicit backup project must be the staged PPSV app under ${PPSV_RELEASES_ROOT}." ;;
   esac
-  [[ -d "${app_dir}" && ! -L "${app_dir}" && -f "${app_dir}/renv.lock" ]] || die "Staged backup project is incomplete or unsafe: ${app_dir}"
+  [[ -d "${app_dir}" ]] || die "Staged backup project directory is missing: ${app_dir}"
+  [[ ! -L "${app_dir}" ]] || die "Staged backup project must not be a symbolic link: ${app_dir}"
+  [[ -f "${app_dir}/renv.lock" && ! -L "${app_dir}/renv.lock" ]] || die "Staged backup project has no regular renv.lock: ${app_dir}"
 else
   app_dir="$(validate_active_app_dir)"
 fi
