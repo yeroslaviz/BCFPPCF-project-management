@@ -69,7 +69,7 @@ load_runtime_env() {
   export PPSV_POOL_GROUP="${PPSV_POOL_GROUP:-b_profa}"
   export PPSV_RELEASES_ROOT="${PPSV_RELEASES_ROOT:-/srv/ppsvf-app/releases}"
   export PPSV_DATA_ROOT="${PPSV_DATA_ROOT:-/srv/ppsv-app-data}"
-  export PPSV_RUNTIME_HOME="${PPSV_RUNTIME_HOME:-${PPSV_DATA_ROOT}/runtime-home}"
+  export PPSV_RUNTIME_HOME="${PPSV_RUNTIME_HOME:-/home/${APP_RUN_USER:-ppsvf-shiny-user}}"
   export PPSV_CURRENT_LINK="${PPSV_CURRENT_LINK:-/srv/shiny-server/ppsvf-app}"
   export PPSV_R_BIN="${PPSV_R_BIN:-/opt/R/4.6.1/bin}"
   export PPSV_DB_FILE="${PPSV_DB_FILE:-${PPSV_DATA_ROOT}/database/ppsv_projects.db}"
@@ -137,7 +137,7 @@ validate_runtime_paths() {
     *) die "PPSV_FALLBACK_ROOT must be below PPSV_DATA_ROOT." ;;
   esac
   [[ "${RENV_PATHS_CACHE}" == "${PPSV_DATA_ROOT}/renv-cache" ]] || die "RENV_PATHS_CACHE must be the private ${PPSV_DATA_ROOT}/renv-cache directory."
-  [[ "${PPSV_RUNTIME_HOME}" == "${PPSV_DATA_ROOT}/runtime-home" ]] || die "PPSV_RUNTIME_HOME must be ${PPSV_DATA_ROOT}/runtime-home."
+  [[ "${PPSV_RUNTIME_HOME}" == "/home/${APP_RUN_USER}" ]] || die "PPSV_RUNTIME_HOME must match the directory-managed account home: /home/${APP_RUN_USER}."
   [[ "${PPSV_R_BIN}" == /opt/R/4.6.1/bin ]] || die "PPSV_R_BIN must be /opt/R/4.6.1/bin for this release."
   [[ "${PPSV_BACKUP_DIR}" == "${PPSV_DATA_ROOT}/db-backups" ]] || die "PPSV_BACKUP_DIR must be ${PPSV_DATA_ROOT}/db-backups."
   [[ "${PPSV_BACKUP_DIR}" != "${PPSV_FALLBACK_ROOT}" ]] || die "Backup and fallback directories must differ."

@@ -60,13 +60,14 @@ If the Shiny log reports that `/home/ppsvf-shiny-user` does not exist or
 `renv` cannot create `.cache/R/renv`, the runtime account's login home is not
 provisioned. Pull the current repository release, then rerun the idempotent
 provisioning script before deployment; it sets the service account's home to
-`/srv/ppsv-app-data/runtime-home` and installs private R cache settings there.
+the directory-managed `/home/ppsvf-shiny-user` and installs private R cache
+settings there.
 Check the result with:
 
 ```bash
 getent passwd ppsvf-shiny-user
-sudo stat -c '%U:%G %a %n' /srv/ppsv-app-data/runtime-home \
-  /srv/ppsv-app-data/runtime-home/.Renviron
+sudo stat -c '%U:%G %a %n' /home/ppsvf-shiny-user \
+  /home/ppsvf-shiny-user/.Renviron
 sudo scripts/verify_deployment.sh --skip-public
 ```
 

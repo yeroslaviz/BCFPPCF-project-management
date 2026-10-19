@@ -146,6 +146,7 @@ log "TLS key, SAN, expiry, leaf order, and chain validated."
 validate_pool_destination
 validate_backup_destination
 [[ ! -L "${PPSV_RUNTIME_HOME}" ]] || die "Refusing a symbolic link for the runtime home."
+[[ -d /home && ! -L /home ]] || die "The directory-managed runtime home parent /home is missing or symbolic."
 
 # Snapshot every managed configuration file before the first replacement so a
 # later Apache/systemd failure cannot leave a mixed old/new installation.
@@ -191,15 +192,11 @@ done
 [[ -L /etc/apache2/sites-enabled/000-default.conf ]] && default_http_was_enabled=1
 [[ -L /etc/apache2/sites-enabled/default-ssl.conf ]] && default_ssl_was_enabled=1
 
+runtime_passwd_entry="$(getent passwd "${APP_RUN_USER}" || true)"
+[[ -n "${runtime_passwd_entry}" ]] || die "Required directory-managed runtime account does not resolve through NSS: ${APP_RUN_USER}."
+runtime_nss_home="$(awk -F: '{print $6}' <<<"${runtime_passwd_entry}")"
+[[ "${runtime_nss_home}" == "${PPSV_RUNTIME_HOME}" ]] || die "NSS home for ${APP_RUN_USER} is ${runtime_nss_home:-missing}; expected ${PPSV_RUNTIME_HOME}. Update the directory account or PPSV_RUNTIME_HOME policy before provisioning."
 getent group "${APP_RUN_GROUP}" >/dev/null || die "Required runtime/pool group does not exist: ${APP_RUN_GROUP}"
-# The runtime identity must be a local service account that Shiny can switch to.
-# A general NSS lookup can also return a same-named LDAP/NIS identity, which
-# usermod cannot update in /etc/passwd.
-if ! getent -s files passwd "${APP_RUN_USER}" >/dev/null; then
-  useradd --system --gid "${APP_RUN_GROUP}" --home-dir "${PPSV_RUNTIME_HOME}" --no-create-home --shell /usr/sbin/nologin "${APP_RUN_USER}"
-else
-  usermod --home "${PPSV_RUNTIME_HOME}" "${APP_RUN_USER}"
-fi
 actual_primary_group="$(id -gn "${APP_RUN_USER}")"
 [[ "${actual_primary_group}" == "${APP_RUN_GROUP}" ]] || die "${APP_RUN_USER} primary group is ${actual_primary_group}; expected ${APP_RUN_GROUP}."
 
