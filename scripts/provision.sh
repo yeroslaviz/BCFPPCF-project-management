@@ -192,7 +192,10 @@ done
 [[ -L /etc/apache2/sites-enabled/default-ssl.conf ]] && default_ssl_was_enabled=1
 
 getent group "${APP_RUN_GROUP}" >/dev/null || die "Required runtime/pool group does not exist: ${APP_RUN_GROUP}"
-if ! getent passwd "${APP_RUN_USER}" >/dev/null; then
+# The runtime identity must be a local service account that Shiny can switch to.
+# A general NSS lookup can also return a same-named LDAP/NIS identity, which
+# usermod cannot update in /etc/passwd.
+if ! getent -s files passwd "${APP_RUN_USER}" >/dev/null; then
   useradd --system --gid "${APP_RUN_GROUP}" --home-dir "${PPSV_RUNTIME_HOME}" --no-create-home --shell /usr/sbin/nologin "${APP_RUN_USER}"
 else
   usermod --home "${PPSV_RUNTIME_HOME}" "${APP_RUN_USER}"
