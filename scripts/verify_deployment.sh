@@ -98,7 +98,11 @@ runtime_primary_group="$(id -gn "${APP_RUN_USER}" 2>/dev/null || true)"
 runtime_home="$(getent passwd "${APP_RUN_USER}" | cut -d: -f6)"
 [[ "${runtime_home}" == "${PPSV_RUNTIME_HOME}" ]] && pass "runtime account home is ${PPSV_RUNTIME_HOME}" || fail "runtime account home is ${runtime_home:-missing}, expected ${PPSV_RUNTIME_HOME}"
 if [[ -d "${PPSV_RUNTIME_HOME}" && ! -L "${PPSV_RUNTIME_HOME}" && "$(stat -c '%U:%G %a' "${PPSV_RUNTIME_HOME}")" == "${APP_RUN_USER}:${APP_RUN_GROUP} 700" && -f "${PPSV_RUNTIME_HOME}/.Renviron" && ! -L "${PPSV_RUNTIME_HOME}/.Renviron" && "$(stat -c '%U:%G %a' "${PPSV_RUNTIME_HOME}/.Renviron")" == "${APP_RUN_USER}:${APP_RUN_GROUP} 600" ]]; then
-  grep -Fxq "RENV_PATHS_CACHE=${RENV_PATHS_CACHE}" "${PPSV_RUNTIME_HOME}/.Renviron" && grep -Fxq "R_USER_CACHE_DIR=${RENV_PATHS_CACHE}/user-cache" "${PPSV_RUNTIME_HOME}/.Renviron" && pass "runtime R cache settings are installed in its private home" || fail "runtime .Renviron is missing the PPSV R cache settings"
+  grep -Fxq "RENV_PATHS_CACHE=${RENV_PATHS_CACHE}" "${PPSV_RUNTIME_HOME}/.Renviron" && \
+    grep -Fxq "R_USER_CACHE_DIR=${RENV_PATHS_CACHE}/user-cache" "${PPSV_RUNTIME_HOME}/.Renviron" && \
+    grep -Fxq 'TRUST_PROXY_AUTH_USER_QUERY=1' "${PPSV_RUNTIME_HOME}/.Renviron" && \
+    pass "runtime R cache and canonical LDAP identity settings are installed in its private home" || \
+    fail "runtime .Renviron is missing the PPSV R cache or canonical LDAP identity setting"
 else
   fail "runtime home or .Renviron has unsafe ownership, permissions, or file type"
 fi

@@ -1,2 +1,5 @@
 RENV_PATHS_CACHE=/srv/ppsv-app-data/renv-cache
 R_USER_CACHE_DIR=/srv/ppsv-app-data/renv-cache/user-cache
+# Shiny Server's login-style su launch may drop systemd EnvironmentFile
+# values. This required, non-secret production flag must reach the R process.
+TRUST_PROXY_AUTH_USER_QUERY=1
