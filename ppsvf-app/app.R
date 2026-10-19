@@ -505,7 +505,7 @@ server <- function(input, output, session) {
   acceptance_review <- reactiveVal(NULL)
   flash_error <- reactiveVal(NULL)
 
-  request_headers <- function() {
+  request_headers <- function(query_string = NULL) {
     if (!is.null(app_context) && identical(app_context$config$auth_mode, "test")) {
       return(list(
         HTTP_X_REMOTE_USER = Sys.getenv("PPSV_TEST_USER", "testuser"),
@@ -519,7 +519,7 @@ server <- function(input, output, session) {
     if (!nzchar(trimws(forwarded_username)) &&
         identical(app_context$config$auth_mode, "ldap") &&
         tolower(trimws(Sys.getenv("TRUST_PROXY_AUTH_USER_QUERY", "0"))) %in% c("1", "true", "yes", "on")) {
-      url_search <- scalar_text(session$clientData$url_search)
+      url_search <- scalar_text(query_string)
       if (!nzchar(trimws(url_search))) url_search <- scalar_text(session$request$QUERY_STRING)
       forwarded_username <- ppsv_proxy_query_username(
         url_search,
@@ -536,11 +536,11 @@ server <- function(input, output, session) {
     )
   }
 
-  remote_username <- function() {
+  remote_username <- function(query_string = NULL) {
     if (!is.null(app_context) && identical(app_context$config$auth_mode, "test")) {
       return(tolower(trim_scalar(Sys.getenv("PPSV_TEST_USER", "testuser"))))
     }
-    headers <- request_headers()
+    headers <- request_headers(query_string)
     candidates <- c(
       scalar_text(headers$HTTP_X_REMOTE_USER),
       scalar_text(headers$REMOTE_USER)
@@ -555,11 +555,16 @@ server <- function(input, output, session) {
     tolower(username)
   }
 
-  load_identity <- function() {
-    username <- remote_username()
+  load_identity <- function(query_string = NULL) {
+    username <- remote_username(query_string)
     if (!nzchar(username)) {
       identity(NULL)
-      identity_error("No authenticated LDAP identity was supplied by Apache.")
+      query_trust_enabled <- tolower(trimws(Sys.getenv("TRUST_PROXY_AUTH_USER_QUERY", "0"))) %in% c("1", "true", "yes", "on")
+      identity_error(if (!query_trust_enabled && identical(app_context$config$auth_mode, "ldap")) {
+        "Canonical LDAP identity handoff is disabled; TRUST_PROXY_AUTH_USER_QUERY must be 1."
+      } else {
+        "Apache did not provide a canonical authenticated LDAP username. Check the auth_user redirect and app URL."
+      })
       return(invisible(NULL))
     }
     test_mode <- !is.null(app_context) && identical(app_context$config$auth_mode, "test")
@@ -567,7 +572,7 @@ server <- function(input, output, session) {
       backend_call(
         "current_user",
         username = if (test_mode) username else NULL,
-        headers = request_headers()
+        headers = request_headers(query_string)
       ),
       error = function(error) {
         identity_error(conditionMessage(error))
@@ -582,11 +587,16 @@ server <- function(input, output, session) {
   if (!is.null(app_context) && identical(app_context$config$auth_mode, "test")) {
     load_identity()
   } else {
-    # clientData$url_search is populated by the browser handshake; observing
-    # it ensures canonical Apache auth_user is available before login.
-    observeEvent(session$clientData$url_search, {
-      load_identity()
-    }, once = TRUE, ignoreInit = FALSE)
+    initial_query <- scalar_text(session$request$QUERY_STRING)
+    if (nzchar(trimws(initial_query))) {
+      load_identity(initial_query)
+    } else {
+      # clientData$url_search is populated by the browser handshake; observing
+      # it handles Shiny Server builds that omit QUERY_STRING from request.
+      observeEvent(session$clientData$url_search, {
+        load_identity(scalar_text(session$clientData$url_search))
+      }, once = TRUE, ignoreInit = FALSE)
+    }
   }
 
   call_with_notice <- function(expr, success = NULL, refresh = TRUE) {
